@@ -1,0 +1,21 @@
+@use './settings' as *;
+
+@mixin absolute-cover {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+@mixin glass {
+  background: $surface;
+  border: 1px solid $hairline;
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+@mixin focus-ring {
+  outline: none;
+  box-shadow: $shadow-glow;
+}

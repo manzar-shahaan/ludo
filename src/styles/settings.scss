@@ -1,0 +1,65 @@
+// ===== Design tokens (dark) =====
+// Surface
+$bg-0: #0b0d10;
+$bg-1: #111418;
+$bg-2: #161a20;
+$bg-3: #1d222a;
+$surface: rgba(255, 255, 255, 0.04);
+$surface-strong: rgba(255, 255, 255, 0.06);
+$hairline: rgba(255, 255, 255, 0.08);
+$hairline-strong: rgba(255, 255, 255, 0.14);
+
+// Text
+$text-1: #e7eaee;
+$text-2: #aab1bd;
+$text-3: #6b7280;
+
+// Accent
+$accent: #7c9cff;
+$accent-soft: rgba(124, 156, 255, 0.18);
+
+// Player colors (desaturated for dark mode)
+$brand-1: hsl(355, 75%, 62%); // red
+$brand-2: hsl(140, 50%, 55%); // green
+$brand-3: hsl(210, 75%, 62%); // blue
+$brand-4: hsl(45,  85%, 60%); // yellow
+$brand-10: hsl(210, 12%, 36%); // neutral path
+
+// Legacy aliases (kept so component scss compiles unchanged)
+$light: $bg-3;
+$dark: $text-1;
+$dark-less: $text-2;
+$gray-60: $text-3;
+$secondary: $accent-soft;
+$danger: $brand-1;
+$body-bg: $bg-0;
+$body-color: $text-1;
+
+// Geometry
+$step-width: 8.33333333333%;
+$step-gutter: 0.83333333333%;
+$board-width: 720px; // logical max; CSS aspect-ratio handles fit
+$golden-ratio: 1.61803398875;
+
+// Radii
+$border-radius: 14px;
+$border-radius-sm: 10px;
+$border-radius-lg: 22px;
+
+// Typography
+$font-family-sans-serif: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+$font-family-numeric: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+$font-size-sm: 0.875rem;
+
+// Animations
+$marble-animation-duration: 280;
+$marble-go-to-heaven-duration: 900;
+$step-go-to-heaven-duration: 280;
+$step-go-to-heaven-delay: $marble-animation-duration + $marble-go-to-heaven-duration;
+$ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+$ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+// Elevation
+$shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px $hairline;
+$shadow-2: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px $hairline;
+$shadow-glow: 0 0 0 2px rgba(124, 156, 255, 0.45);

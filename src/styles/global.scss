@@ -1,0 +1,114 @@
+@use 'sass:color';
+@use './settings' as *;
+@use './mixins' as *;
+@use './animations.scss';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: $font-family-sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: $text-1;
+  background: $bg-0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: $accent;
+  text-decoration: none;
+  transition: color 150ms $ease-out;
+}
+a:hover {
+  color: color.adjust($accent, $lightness: 8%);
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6, p, ul, ol {
+  margin: 0;
+}
+
+ul, ol {
+  padding: 0;
+  list-style: none;
+}
+
+::selection {
+  background: $accent-soft;
+  color: $text-1;
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: $border-radius;
+  border: 1px solid $hairline;
+  background: $surface;
+  color: $text-1;
+  transition: background 150ms $ease-out, border-color 150ms $ease-out, transform 120ms $ease-out;
+
+  &:hover {
+    background: $surface-strong;
+    border-color: $hairline-strong;
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &--primary {
+    background: linear-gradient(180deg, color.adjust($accent, $lightness: 4%), color.adjust($accent, $lightness: -6%));
+    border-color: transparent;
+    color: #0b0d10;
+    font-weight: 600;
+  }
+  &--primary:hover {
+    background: linear-gradient(180deg, color.adjust($accent, $lightness: 8%), color.adjust($accent, $lightness: -2%));
+  }
+
+  &--ghost {
+    background: transparent;
+  }
+
+  &--lg {
+    padding: 0.95rem 1.6rem;
+    font-size: 1rem;
+  }
+}
+
+#app {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(124, 156, 255, 0.08), transparent 60%),
+    radial-gradient(900px 600px at 110% 110%, rgba(255, 124, 156, 0.05), transparent 60%),
+    $bg-0;
+}

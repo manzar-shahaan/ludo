@@ -35,6 +35,8 @@ export default defineComponent({
       isRolling: false,
       rollingFace: 1,
       animKey: 0,
+      calloutReady: false,
+      calloutTimerId: 0 as ReturnType<typeof setTimeout>,
       BoardStatus
     };
   },
@@ -52,6 +54,9 @@ export default defineComponent({
     boardStatus(): number {
       return store.getters['board/boardStatus'];
     },
+    diceSpeed(): number {
+      return store.getters['settings/diceSpeed'] ?? 1.5;
+    },
     shouldShowWaitingDice(): boolean {
       return this.boardStatus === BoardStatus.WAITING_TURN_DICE && !this.playerActive?.isAI;
     },
@@ -62,7 +67,7 @@ export default defineComponent({
       return this.shouldShowResult || this.shouldShowWaitingDice;
     },
     showResult(): boolean {
-      return !this.isRolling
+      return this.calloutReady
         && !!this.diceInfo?.value
         && this.shouldShowResult;
     },
@@ -85,26 +90,67 @@ export default defineComponent({
     }
   },
 
+  mounted() {
+    // If the component mounts while TURNING_DICE is already set (common for AI where
+    // the store update and component mount race), the watcher misses the change.
+    if (this.boardStatus === BoardStatus.TURNING_DICE) this.startRollAnimation();
+  },
+
+  beforeUnmount() {
+    clearTimeout(this.calloutTimerId);
+  },
+
   methods: {
     startRollAnimation() {
       if (this.isRolling) return;
+      clearTimeout(this.calloutTimerId);
+      this.calloutReady = false;
       this.isRolling = true;
       this.animKey++;
-      let delay = 45;
+
+      // All intervals scale with diceSpeed so the total duration is proportional.
+      // The curve shape (accel → peak → decel) is the same at every speed.
+      const scale = this.diceSpeed / 1.5;  // 1.0 at Normal, <1 at Fast, >1 at Slow
+      const peakDelay  = 12  * scale;  // fastest tick interval
+      const stopDelay  = 300 * scale;  // interval at which decel phase ends
+      const PEAK_TICKS = 3;            // ticks held at peak before decelerating
+
+      let delay    = 70 * scale;  // starting interval (medium — will accelerate)
+      let peaked   = false;
+      let peakTick = 0;
+
       const tick = () => {
         this.rollingFace = 1 + Math.floor(Math.random() * 6);
-        delay = Math.min(delay * 1.38, 260);
-        if (delay < 260) {
-          setTimeout(tick, delay);
+
+        if (!peaked) {
+          delay *= 0.65;              // accelerate sharply — intervals shrink very fast
+          if (delay <= peakDelay) {
+            delay  = peakDelay;
+            peaked = true;
+          }
+        } else if (peakTick < PEAK_TICKS) {
+          peakTick++;                 // stay at peak speed for a few ticks
         } else {
-          setTimeout(() => {
-            this.isRolling = false;
-            this.animKey++;
-          }, 120);
+          delay *= 1.18;             // decelerate gently — grinding to a halt
+          if (delay >= stopDelay) {
+            // Die has come to rest; show the final face then trigger callout after 2 s.
+            setTimeout(() => {
+              this.isRolling = false;
+              this.animKey++;
+              this.calloutTimerId = setTimeout(() => {
+                this.calloutReady = true;
+              }, 2000);
+            }, 80 * scale);
+            return;
+          }
         }
+
+        setTimeout(tick, delay);
       };
+
       setTimeout(tick, delay);
     },
+
     onClickTurn() {
       this.$emit('turn_dice');
     }
@@ -204,7 +250,7 @@ export default defineComponent({
   border: 1px solid $hairline;
 }
 
-.callout-enter-active { transition: opacity 220ms $ease-out, transform 220ms $ease-out; }
+.callout-enter-active { transition: opacity 250ms $ease-out, transform 250ms $ease-out; }
 .callout-leave-active { transition: opacity 160ms $ease-out, transform 160ms $ease-out; }
 .callout-enter-from { opacity: 0; transform: translateY(6px) scale(0.96); }
 .callout-leave-to   { opacity: 0; transform: translateY(-4px); }

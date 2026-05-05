@@ -128,14 +128,7 @@ function _getBenchActions(diceInfo: DiceInfo, player: Player): MoveAction[] {
   const playerMarblesInBench = store.getters['marbles/listInBenchByPlayer'](player);
   const hasAnyBenchMarbles = playerMarblesInBench.length > 0;
 
-  // prevent move to filled step
-  const startpointStep = store.getters['steps/sideStartpoint'](player);
-  const playerMarblesAtStartpoint = store.getters['marbles/listPlayerMarblesByPosition'](
-    player,
-    getPositionOfStep(startpointStep)
-  );
-  const startpointIsFilled = playerMarblesAtStartpoint.length > 0;
-  if (!hasAnyBenchMarbles || startpointIsFilled) {
+  if (!hasAnyBenchMarbles) {
     return availableActions;
   }
 
@@ -165,16 +158,6 @@ function _getInGameActions(diceInfo: DiceInfo, player: Player): MoveAction[] {
     const isOutOfPath: boolean = diceInfo.value <= distanceToFinal;
 
     if (!isOutOfPath) {
-      return;
-    }
-
-    const toPosition: PositionInBoard = getPositionAfterMove({ from: marblePosition, player, amount: diceInfo.value });
-
-    // prevent move to filled step
-    const playerMarblesAtToPosition = store.getters['marbles/listPlayerMarblesByPosition'](player, toPosition);
-    const isToPositionFinal = getStepPlaceOfPosition(toPosition)[StepPlaceProps.STEP_TYPE].includes(StepType.FINAL);
-    const toPositionIsFilled = playerMarblesAtToPosition.length > 0;
-    if (!isToPositionFinal && toPositionIsFilled) {
       return;
     }
 
@@ -217,23 +200,27 @@ export async function moveStepByStep(moveAction: MoveAction): Promise<MoveAction
     isMoveable: false
   };
 
-  const moveSteps: StepPlace[] = getStepsOfMoveAction(moveAction);
-  for (const [index, step] of moveSteps.entries()) {
-    const tempMarble: Marble = {
-      ...moveAction.marble,
-      isInGame: true,
-      row: step[StepPlaceProps.ROW],
-      column: step[StepPlaceProps.COLUMN],
-      isMoving: true,
-      isMoveable: false
-    };
-    await store.dispatch('marbles/update', tempMarble);
-    // dont run on last
-    if (index <= moveSteps.length - 2) {
-      await wait(SLEEP_BETWEEN_MOVES);
+  if (moveAction.type === MoveType.BENCH) {
+    // Place directly on the startpoint with no intermediate steps
+    await store.dispatch('marbles/update', finalMarble);
+  } else {
+    const moveSteps: StepPlace[] = getStepsOfMoveAction(moveAction);
+    for (const [index, step] of moveSteps.entries()) {
+      const tempMarble: Marble = {
+        ...moveAction.marble,
+        isInGame: true,
+        row: step[StepPlaceProps.ROW],
+        column: step[StepPlaceProps.COLUMN],
+        isMoving: true,
+        isMoveable: false
+      };
+      await store.dispatch('marbles/update', tempMarble);
+      if (index <= moveSteps.length - 2) {
+        await wait(SLEEP_BETWEEN_MOVES);
+      }
     }
+    await store.dispatch('marbles/update', finalMarble);
   }
-  await store.dispatch('marbles/update', finalMarble);
 
   const updatedMoveAction = {
     ...moveAction,

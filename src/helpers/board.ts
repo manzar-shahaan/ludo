@@ -10,8 +10,9 @@ export function finishGame() {
     value: BoardStatus.FINISHED
   });
   store.dispatch('updateGameStatus', GameStatus.GAME_OVER);
-  const activePlayer = store.getters['board/playerActive'];
-  _setWinnerPlayer(activePlayer);
+  const finishedPlayers: Player[] = store.getters['board/finishedPlayers'];
+  const winner = finishedPlayers[0] ?? store.getters['board/playerActive'];
+  _setWinnerPlayer(winner);
   setShowMenu(true);
   saveGame('game finished');
 }
@@ -87,17 +88,17 @@ export async function addPlayers(roster?: PlayerSlot[]) {
 
 export async function changeTurn() {
   const playerActive = store.getters['board/playerActive'];
-  if (!playerActive) {
-    return _setPlayerActive(_getRandomPlayer());
+  const activePlayers: Player[] = store.getters['players/listInGame'];
+
+  if (!playerActive || activePlayers.length === 0) {
+    return _setPlayerActive(activePlayers[0] ?? null);
   }
 
-  const currentPlayerActiveIndex = store.getters['players/indexInListById'](playerActive.id);
-
-  const allPlayers = store.getters['players/list'];
-  const newPlayerActiveIndex = (currentPlayerActiveIndex + 1) % allPlayers.length;
-  const newPlayerActive = allPlayers[newPlayerActiveIndex];
-
-  await _setPlayerActive(newPlayerActive);
+  const currentIndex = activePlayers.findIndex((p: Player) => p.id === playerActive.id);
+  // currentIndex is -1 when the active player was just marked as finished;
+  // in that case start from index 0 to preserve order.
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % activePlayers.length;
+  await _setPlayerActive(activePlayers[nextIndex]);
 }
 
 async function _setPlayerActive(player: Player | null) {

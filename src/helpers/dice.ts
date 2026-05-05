@@ -45,10 +45,6 @@ export async function turnDice(activePlayer: Player) {
       player: activePlayer
     })
   });
-  store.dispatch('board/update', {
-    key: 'boardStatus',
-    value: BoardStatus.PLAYER_IS_THINKING
-  });
   saveGame('turned dice');
   // console.log("dice:", result, "player:", this.activePlayer.id);
 }

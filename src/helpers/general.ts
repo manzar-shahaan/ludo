@@ -62,11 +62,8 @@ export function createMoveAction({
   const from = getPositionOfMarble(marble);
   let to;
   if (type === MoveType.BENCH) {
-    to = getPositionAfterMove({
-      from,
-      amount: 1,
-      player
-    });
+    const startpointStep = store.getters['steps/sideStartpoint'](player);
+    to = getPositionOfStep(startpointStep);
   } else {
     to = getPositionAfterMove({
       from,
@@ -127,15 +124,11 @@ export async function performOnGameOverActions(player: Player) {
 
 export function getKickoutList(player: Player, targetPosition: PositionInBoard): Marble[] {
   const otherMarblesAtStepPlace = store.getters['marbles/listOtherPlayersMarblesByPosition'](player, targetPosition);
-  const gamePlay = store.getters['settings/gamePlay'];
   return otherMarblesAtStepPlace.filter((m: Marble) => {
     const stepPlace: StepPlace = getStepPlaceOfMarble(m);
-    let preventKickout = false;
-    if (gamePlay.isSafezonesEnabled) {
-      preventKickout = preventKickout || stepPlace[StepPlaceProps.STEP_TYPE].includes(StepType.SAFEZONE);
-    }
-    preventKickout = preventKickout || stepPlace[StepPlaceProps.STEP_TYPE].includes(StepType.FINAL);
-    return !preventKickout;
+    const types: StepType[] = stepPlace[StepPlaceProps.STEP_TYPE];
+    const isSafe = types.includes(StepType.SAFEZONE) || types.includes(StepType.FINAL);
+    return !isSafe;
   });
 }
 

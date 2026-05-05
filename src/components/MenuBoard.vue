@@ -20,6 +20,19 @@
         <button v-if="gameStatus === GameStatus.PAUSED"  @click="onClickResume()" class="ui-btn ui-btn--primary ui-btn--lg" type="button">Resume</button>
         <button @click="onClickQuit()" class="ui-btn ui-btn--ghost" type="button">Quit</button>
       </div>
+
+      <div class="settings-section">
+        <div class="setting-row">
+          <span class="setting-label">Roll Speed</span>
+          <div class="speed-btns">
+            <button v-for="opt in speedOptions" :key="opt.value"
+              class="speed-btn" :class="{ active: diceSpeed === opt.value }"
+              type="button" @click="setDiceSpeed(opt.value)">
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </nav>
 </template>
@@ -40,7 +53,14 @@ export default defineComponent({
   emits: ['start_game', 'resume_game'],
 
   data() {
-    return { GameStatus };
+    return {
+      GameStatus,
+      speedOptions: [
+        { label: 'Fast',   value: 0.7 },
+        { label: 'Normal', value: 1.5 },
+        { label: 'Slow',   value: 2.5 },
+      ]
+    };
   },
 
   computed: {
@@ -49,14 +69,16 @@ export default defineComponent({
     gameStatus(): GameStatus { return store.getters['gameStatus']; },
     showSetup(): boolean {
       return this.gameStatus === GameStatus.NOT_STARTED || this.gameStatus === GameStatus.GAME_OVER;
-    }
+    },
+    diceSpeed(): number { return store.getters['settings/diceSpeed']; }
   },
 
   methods: {
     onStart(roster: PlayerSlot[]) { this.$emit('start_game', roster); },
     onClickPause()  { pauseGame(); },
     onClickResume() { this.$emit('resume_game'); },
-    onClickQuit()   { quitGame(); }
+    onClickQuit()   { quitGame(); },
+    setDiceSpeed(value: number) { store.dispatch('settings/setGamePlay', { diceSpeed: value }); }
   }
 });
 </script>
@@ -116,5 +138,40 @@ export default defineComponent({
   flex-direction: column;
   gap: 0.6rem;
   .ui-btn { width: 100%; }
+}
+.settings-section {
+  border-top: 1px solid $hairline;
+  padding-top: 1rem;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.setting-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: $text-3;
+  white-space: nowrap;
+}
+.speed-btns {
+  display: flex;
+  gap: 0.35rem;
+}
+.speed-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: $border-radius;
+  border: 1px solid $hairline;
+  background: $surface;
+  color: $text-2;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms, color 150ms;
+  &:hover { background: $surface-strong; color: $text-1; }
+  &.active { background: $accent-soft; border-color: $accent; color: $accent; font-weight: 600; }
 }
 </style>

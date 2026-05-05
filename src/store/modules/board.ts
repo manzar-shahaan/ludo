@@ -6,6 +6,7 @@ const initialState: any = {
   boardStatus: BoardStatus.INITIALIZING,
   playerActive: null,
   playerWinner: null,
+  finishedPlayers: [] as Player[],
   diceInfo: {
     value: null,
     player: null,
@@ -20,6 +21,9 @@ export default {
     update(state: any, { key, value }: { key: string; value: any }) {
       state[key] = value;
     },
+    addFinishedPlayer(state: any, player: Player) {
+      state.finishedPlayers = [...state.finishedPlayers, player];
+    },
     reset(state: any) {
       for (const key in initialState) {
         if (Object.prototype.hasOwnProperty.call(initialState, key)) {
@@ -31,6 +35,9 @@ export default {
   actions: {
     update({ commit }: any, data: { key: string; value: any }) {
       commit('update', data);
+    },
+    addFinishedPlayer({ commit }: any, player: Player) {
+      commit('addFinishedPlayer', player);
     },
     reset({ commit }: { commit: any }) {
       commit('reset');
@@ -48,6 +55,7 @@ export default {
     playerWinner(state: any): Player | null {
       if (!state.playerWinner) return null;
       return store.getters['players/itemById'](state.playerWinner.id);
-    }
+    },
+    finishedPlayers: (state: any): Player[] => state.finishedPlayers
   }
 };

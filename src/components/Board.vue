@@ -1,5 +1,20 @@
 <template>
   <div class="play" @keyup.space="keySpacePressed()" @keyup.esc="menuToggle()" tabindex="0">
+    <Confetti v-if="placementBanner || playerWinner" :side="placementBanner ? placementBanner.player.side : playerWinner?.side" />
+
+    <transition name="banner">
+      <div v-if="placementBanner" class="placement-banner">
+        <span class="pb-dot" :class="`side-${placementBanner.player.side}`"></span>
+        <div class="pb-text">
+          <strong class="pb-name">{{ placementBanner.player.name }}</strong>
+          <span class="pb-msg">finished {{ rankLabel(placementBanner.rank) }}!</span>
+        </div>
+        <div class="pb-actions">
+          <button class="ui-btn ui-btn--ghost pb-btn" type="button" @click="onBannerStop()">Stop</button>
+          <button class="ui-btn ui-btn--primary pb-btn" type="button" @click="onBannerContinue()">Continue</button>
+        </div>
+      </div>
+    </transition>
     <header class="topbar">
       <router-link to="/" class="ui-btn ui-btn--ghost back">
         <span aria-hidden="true">←</span> Home
@@ -17,9 +32,11 @@
     </header>
 
     <div class="layout">
-      <aside class="side side-left">
-        <PlayerCard v-for="p in playersLeft" :key="p.id" :player="p" />
-      </aside>
+      <div class="corners-col">
+        <PlayerCard v-if="playerSide2" :player="playerSide2" @turn_dice="_turnDice()" />
+        <div class="corners-spacer"></div>
+        <PlayerCard v-if="playerSide1" :player="playerSide1" :diceTop="true" @turn_dice="_turnDice()" />
+      </div>
 
       <main class="board-stage">
         <div class="board-square">
@@ -30,26 +47,14 @@
             </div>
           </section>
           <MenuBoard v-show="shouldShowMenu" @start_game="_startGame" @resume_game="resumeGame()" />
-
-          <transition name="fade">
-            <div v-if="handoffPlayer" class="handoff-overlay" @click="dismissHandoff">
-              <div class="handoff-card">
-                <span class="handoff-dot" :class="`side-${handoffPlayer.side}`"></span>
-                <p class="handoff-label">Pass to</p>
-                <p class="handoff-name">{{ handoffPlayer.name }}</p>
-                <button class="ui-btn ui-btn--primary" type="button">I'm Ready</button>
-              </div>
-            </div>
-          </transition>
         </div>
       </main>
 
-      <aside class="side side-right">
-        <PlayerCard v-for="p in playersRight" :key="p.id" :player="p" />
-        <div class="dice-panel">
-          <Dice @turn_dice="_turnDice()" />
-        </div>
-      </aside>
+      <div class="corners-col">
+        <PlayerCard v-if="playerSide3" :player="playerSide3" @turn_dice="_turnDice()" />
+        <div class="corners-spacer"></div>
+        <PlayerCard v-if="playerSide4" :player="playerSide4" :diceTop="true" @turn_dice="_turnDice()" />
+      </div>
     </div>
   </div>
 </template>
@@ -58,32 +63,31 @@
 import { defineComponent } from 'vue';
 import store from '@/store/index';
 import Road from '@/components/Road.vue';
-import Dice from '@/components/Dice.vue';
 import Marbles from '@/components/Marbles.vue';
 import MenuBoard from '@/components/MenuBoard.vue';
 import PlayerCard from '@/components/PlayerCard.vue';
+import Confetti from '@/components/Confetti.vue';
 import { Player, MoveAction, Marble, BoardStatus, GameStatus, DiceInfo } from '@/types/types';
 import {
   getAvailableActions, chooseAction, hasMultipleAvailableActions, canMove,
   afterMoveActions, moveStepByStep, beforeMoveActions, afterFinishTurn,
   createMoveAction, wait, turnDice, setShowMenu, startGame, finishGame,
-  changeTurn
+  changeTurn, pauseGame
 } from '@/helpers';
-import { SLEEP_BETWEEN_TURNS, SLEEP_AFTER_TURN_DICE } from '@/constants';
+import { SLEEP_BETWEEN_TURNS } from '@/constants';
 import type { PlayerSlot } from '@/store/modules/settings';
 
 export default defineComponent({
   name: 'BoardGame',
 
-  components: { Dice, Road, Marbles, MenuBoard, PlayerCard },
+  components: { Road, Marbles, MenuBoard, PlayerCard, Confetti },
 
   data() {
     return {
       _turnDiceResolve: null as (() => void) | null,
       _resumeResolve:   null as (() => void) | null,
-      _handoffResolve:  null as (() => void) | null,
-      handoffPlayer:    null as Player | null,
-      lastHumanId:      null as number | null
+      _bannerResolve:   null as ((stop: boolean) => void) | null,
+      placementBanner:  null as { player: Player; rank: number } | null,
     };
   },
 
@@ -95,9 +99,11 @@ export default defineComponent({
     diceInfo():                DiceInfo  { return store.getters['board/diceInfo']; },
     gameStatus():              GameStatus { return store.getters['gameStatus']; },
     isPreviousMoveCompleted(): boolean   { return this.diceInfo.isDone; },
-    players():                 Player[]  { return store.getters['players/list'] || []; },
-    playersLeft():             Player[]  { return this.players.filter(p => p.side === 1 || p.side === 2); },
-    playersRight():            Player[]  { return this.players.filter(p => p.side === 3 || p.side === 4); },
+    players():    Player[]       { return store.getters['players/list'] || []; },
+    playerSide1(): Player | null { return this.players.find((p: Player) => p.side === 1) || null; },
+    playerSide2(): Player | null { return this.players.find((p: Player) => p.side === 2) || null; },
+    playerSide3(): Player | null { return this.players.find((p: Player) => p.side === 3) || null; },
+    playerSide4(): Player | null { return this.players.find((p: Player) => p.side === 4) || null; },
     isGameOver(): boolean {
       if (!this.playerActive) return false;
       return store.getters['marbles/isAllAtFinal'](this.playerActive);
@@ -141,39 +147,24 @@ export default defineComponent({
     },
 
     async _startGame(roster?: PlayerSlot[]) {
-      this.lastHumanId = null;
-      this.handoffPlayer = null;
       await startGame(roster);
       this.focusBoard();
       this.playTurn();
     },
 
-    handoffPromise(): Promise<void> {
-      return new Promise(resolve => { this._handoffResolve = resolve; });
-    },
-
-    dismissHandoff() {
-      this.handoffPlayer = null;
-      if (this._handoffResolve) { this._handoffResolve(); this._handoffResolve = null; }
-    },
-
-    async maybeHandoff() {
-      // Show "Pass to {name}" between two distinct human players.
-      if (!this.playerActive || this.playerActive.isAI) {
-        this.lastHumanId = null;
-        return;
+    menuToggle() {
+      const opening = !this.shouldShowMenu;
+      if (opening) {
+        if (this.gameStatus === GameStatus.PLAYING) pauseGame();
+        setShowMenu(true);
+      } else {
+        if (this.gameStatus === GameStatus.PAUSED) {
+          this.resumeGame();
+        } else {
+          setShowMenu(false);
+        }
       }
-      // Only interstitial when there's >1 human and we're switching humans
-      const humanCount = this.players.filter(p => !p.isAI).length;
-      if (humanCount < 2) return;
-      if (this.lastHumanId === this.playerActive.id) return;
-
-      this.handoffPlayer = this.playerActive;
-      await this.handoffPromise();
-      this.lastHumanId = this.playerActive.id;
     },
-
-    menuToggle() { setShowMenu(!this.shouldShowMenu); },
 
     shouldChangeTurn(): boolean {
       if (!this.diceInfo.value) return true;
@@ -182,15 +173,43 @@ export default defineComponent({
       return true;
     },
 
-    async playTurn() {
-      if (this.isGameOver) { finishGame(); return; }
+    async playTurn(skipChangeTurn = false) {
+      if (this.isGameOver) { await this.onPlayerFinished(); return; }
       await this.resumePromise();
-      if (this.shouldChangeTurn()) changeTurn();
-      await this.maybeHandoff();
+      if (!skipChangeTurn && this.shouldChangeTurn()) changeTurn();
       await this.turnDicePromise();
       await wait(SLEEP_BETWEEN_TURNS);
       const run = this.playerActive.isAI ? this.performActionsOfPlayerAI : this.performActionsOfPlayerNoAI;
       await run();
+    },
+
+    async onPlayerFinished() {
+      const finishedPlayer: Player = this.playerActive;
+      const rank: number = (store.getters['board/finishedPlayers'] as Player[]).length + 1;
+
+      // Change turn BEFORE marking isInGame=false so the rotation is preserved
+      await changeTurn();
+      await store.dispatch('players/update', { ...finishedPlayer, isInGame: false });
+      await store.dispatch('board/addFinishedPlayer', finishedPlayer);
+
+      const remaining: Player[] = store.getters['players/listInGame'];
+      if (remaining.length === 0) { finishGame(); return; }
+
+      this.placementBanner = { player: finishedPlayer, rank };
+      const stopped = await new Promise<boolean>(resolve => {
+        this._bannerResolve = resolve;
+      });
+      this.placementBanner = null;
+
+      if (stopped) { finishGame(); return; }
+      this.playTurn(true);
+    },
+
+    onBannerStop()     { this._bannerResolve?.(true);  },
+    onBannerContinue() { this._bannerResolve?.(false); },
+
+    rankLabel(rank: number): string {
+      return rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
     },
 
     async performActionsOfPlayerAI() {
@@ -205,11 +224,14 @@ export default defineComponent({
 
     async performActionsOfPlayerNoAI() {
       const actions = this.getAvailableActions();
-      if (actions.length > 0) {
+      if (actions.length === 0) {
+        await afterFinishTurn(); this.playTurn();
+      } else if (!hasMultipleAvailableActions(actions)) {
+        await this.autoMove(actions, this.playerActive);
+        await afterFinishTurn(); this.playTurn();
+      } else {
         this.setMoveableMarbles(actions);
         store.dispatch('board/update', { key: 'boardStatus', value: BoardStatus.PLAYER_IS_THINKING });
-      } else {
-        await afterFinishTurn(); this.playTurn();
       }
     },
 
@@ -255,12 +277,16 @@ export default defineComponent({
 
     async _turnDice(): Promise<void> {
       await turnDice(this.playerActive);
+      // Wait for the dice animation + the 2 s callout gap before the game proceeds.
+      // Animation duration scales linearly with diceSpeed (~2050 ms at Normal/1.5).
+      // Resolve _turnDiceResolve AFTER the wait so human players are held until the
+      // callout is already visible (same timing as AI players).
+      const s: number = store.getters['settings/diceSpeed'] ?? 1.5;
+      await wait(Math.round(2050 * (s / 1.5)) + 2280);
       if (this._turnDiceResolve) { this._turnDiceResolve(); this._turnDiceResolve = null; }
-      await wait(SLEEP_AFTER_TURN_DICE);
     },
 
     keySpacePressed() {
-      if (this.handoffPlayer) { this.dismissHandoff(); return; }
       if (this.playerActive?.isAI || this.boardStatus !== BoardStatus.WAITING_TURN_DICE) return;
       this._turnDice();
     },
@@ -315,20 +341,13 @@ export default defineComponent({
   height: calc(100vh - 4rem);
   overflow: hidden;
 }
-.side {
+.corners-col {
   flex: 0 0 240px;
-  align-self: flex-start; // opt out of stretch so sides size to content
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 100%;
-  overflow-y: auto;
 }
-.dice-panel {
-  margin-top: auto;
-  border-radius: $border-radius;
-  background: $surface;
-  border: 1px solid $hairline;
+.corners-spacer {
+  flex: 1;
 }
 .board-stage {
   flex: 1;
@@ -363,78 +382,62 @@ export default defineComponent({
 }
 .road { @include absolute-cover; }
 
-.handoff-overlay {
-  @include absolute-cover;
-  z-index: 6;
-  display: grid;
-  place-items: center;
-  border-radius: $border-radius-lg;
-  background: rgba(11, 13, 16, 0.7);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-  cursor: pointer;
-}
-.handoff-card {
+.placement-banner {
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.85rem;
-  padding: 2rem 2.25rem;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
   border-radius: $border-radius-lg;
   background: $bg-2;
-  border: 1px solid $hairline;
+  border: 1px solid $hairline-strong;
   box-shadow: $shadow-2;
-  text-align: center;
-  animation: fade-in-up 240ms $ease-out;
+  white-space: nowrap;
 }
-.handoff-dot {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), 0 0 0 6px rgba(255,255,255,0.04);
+.pb-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
   &.side-1 { background: $brand-1; }
   &.side-2 { background: $brand-2; }
   &.side-3 { background: $brand-3; }
   &.side-4 { background: $brand-4; }
 }
-.handoff-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: $text-3;
+.pb-text {
+  display: flex; align-items: baseline; gap: 0.4rem;
 }
-.handoff-name {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: $text-1;
-}
+.pb-name { font-size: 1rem; font-weight: 700; color: $text-1; }
+.pb-msg  { font-size: 0.9rem; color: $text-2; }
+.pb-actions { display: flex; gap: 0.5rem; margin-left: 0.5rem; }
+.pb-btn  { padding: 0.35rem 0.85rem; font-size: 0.85rem; }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 200ms $ease-out; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.banner-enter-active { transition: opacity 250ms $ease-out, transform 250ms $ease-out; }
+.banner-leave-active { transition: opacity 180ms $ease-out, transform 180ms $ease-out; }
+.banner-enter-from   { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+.banner-leave-to     { opacity: 0; transform: translateX(-50%) translateY(-8px); }
 
 @media (max-width: 1080px) {
-  .side { flex: 0 0 200px; }
-  .board-square { max-height: calc(100vw - 440px); }
+  .corners-col { flex: 0 0 200px; }
 }
-@media (max-width: 880px) {
+@media (max-width: 800px) {
   .layout {
     flex-direction: column;
     height: auto;
     overflow: visible;
     align-items: stretch;
   }
-  .side {
+  .corners-col {
     flex: none;
     width: 100%;
-    align-self: auto;
     flex-direction: row;
     flex-wrap: wrap;
-    max-height: none;
-    overflow-y: visible;
+    gap: 0.75rem;
   }
-  .side .player-card { flex: 1 1 200px; }
+  .corners-spacer { display: none; }
+  .corners-col .player-card { flex: 1 1 200px; }
   .board-stage { width: 100%; }
-  .dice-panel { width: 100%; margin-top: 0; }
   .board-square {
     height: auto;
     width: min(100%, 80vh);

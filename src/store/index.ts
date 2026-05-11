@@ -7,6 +7,7 @@ import settings from '@/store/modules/settings';
 import board from '@/store/modules/board';
 import { GameStatus } from '@/types/types';
 import { STORAGE_KEY } from '@/constants';
+import type { GameSnapshot } from '@/net/types';
 
 const persistMutations: string[] = ['saveGame'];
 
@@ -30,6 +31,17 @@ const store = createStore({
     },
     saveGame(state: any) {
       state.lastSavedAt = Date.now();
+    },
+    // Replace all game state slices from a server snapshot (multiplayer mode)
+    applyServerSnapshot(_state: any, snapshot: GameSnapshot) {
+      store.commit('marbles/setList', snapshot.marbles);
+      store.commit('players/setList', snapshot.players);
+      store.commit('board/update', { key: 'boardStatus',      value: snapshot.board.boardStatus });
+      store.commit('board/update', { key: 'playerActive',     value: snapshot.board.playerActive });
+      store.commit('board/update', { key: 'playerWinner',     value: snapshot.board.playerWinner });
+      store.commit('board/update', { key: 'finishedPlayers',  value: snapshot.board.finishedPlayers });
+      store.commit('board/update', { key: 'diceInfo',         value: snapshot.board.diceInfo });
+      store.commit('settings/setGamePlay', snapshot.settings);
     }
   },
   actions: {

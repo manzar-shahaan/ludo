@@ -6,6 +6,7 @@ node_modules
 /tests/e2e/screenshots/
 
 # local env files
+.env
 .env.local
 .env.*.local
 *.env
@@ -18,13 +19,17 @@ yarn-error.log*
 
 # Editor directories and files
 .idea
-#.vscode
+.vscode
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Docs
-documents/other-docs/
+# Aider AI assistant artifacts
 .aider*
+
+# Internal planning docs
+plan_v2.5.md
+HOSTING.md
+documents/other-docs/

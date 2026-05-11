@@ -9,7 +9,7 @@ export default {
       state.list.splice(index, 1, player);
     },
     setList(state: any, list: Player[]) {
-      state.list = list;
+      state.list = [...list];
     },
     add(state: any, player: Player) {
       state.list.push(player);

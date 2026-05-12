@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npx vite build
 
 # ── Stage 2: Runtime image ────────────────────────────────────────────────────
 FROM node:20-alpine

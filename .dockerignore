@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.gitignore
+.aider*
+*.md
+.env*
+*.env
+plan_v2.5.md
+yarn.lock
+tests/
+documents/
+.vscode/
+.github/
+.eslintrc.js
+.prettierrc.json

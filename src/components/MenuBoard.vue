@@ -174,4 +174,18 @@ export default defineComponent({
   &:hover { background: $surface-strong; color: $text-1; }
   &.active { background: $accent-soft; border-color: $accent; color: $accent; font-weight: 600; }
 }
+
+@media (max-width: 700px) {
+  .menu-overlay {
+    // Promote to full-screen fixed overlay so the setup form isn't cramped inside the board square
+    position: fixed;
+    inset: 0;
+    border-radius: 0;
+    z-index: 30;
+  }
+  .menu-card {
+    max-height: 90vh;
+    max-height: 90svh; // tighter on mobile chrome where vh includes url-bar
+  }
+}
 </style>

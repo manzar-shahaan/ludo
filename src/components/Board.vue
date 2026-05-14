@@ -549,7 +549,7 @@ export default defineComponent({
   .layout {
     flex-direction: column;
     gap: 0.4rem;
-    padding: 0.5rem;
+    padding: 0 0 80px; // no side padding (board goes edge-to-edge); bottom reserves dice bar space
     height: auto;
     overflow: visible;
     align-items: stretch;
@@ -571,11 +571,19 @@ export default defineComponent({
     margin: 0;
   }
 
+  // Board itself: remove rounded corners at full bleed width
+  .board {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
   .corners-col {
     flex: none;
     width: 100%;
     flex-direction: row;
     gap: 0.4rem;
+    padding: 0 0.4rem; // restore horizontal padding for player cards
 
     .corners-spacer { display: none; }
     .player-card    { flex: 1 1 0; min-width: 0; }

@@ -4,16 +4,22 @@
 
     <transition name="banner">
       <div v-if="disconnectedPlayer" class="placement-banner disconnect-banner">
-        <span class="pb-text">
+        <span class="pb-dot disconnect-dot"></span>
+        <div class="pb-text">
           <strong class="pb-name">{{ disconnectedPlayer.name }}</strong>
-          <span class="pb-msg">disconnected</span>
-        </span>
-        <div v-if="mySlotIndex === 0" class="pb-actions">
-          <button class="ui-btn ui-btn--ghost pb-btn" type="button"
-            @click="sendMpIntent('CONTINUE_WITHOUT', disconnectedPlayer.slotIndex)">Continue without</button>
-          <button class="ui-btn ui-btn--primary pb-btn" type="button"
-            @click="sendMpIntent('REPLACE_WITH_AI', disconnectedPlayer.slotIndex)">Replace with AI</button>
+          <span class="pb-msg">left the game</span>
         </div>
+        <template v-if="isOwner">
+          <div class="pb-actions">
+            <button class="ui-btn ui-btn--ghost pb-btn" type="button"
+              @click="sendMpIntent('CONTINUE_WITHOUT', disconnectedPlayer.slotIndex)">Continue without</button>
+            <button class="ui-btn ui-btn--primary pb-btn" type="button"
+              @click="sendMpIntent('REPLACE_WITH_AI', disconnectedPlayer.slotIndex)">Replace with AI</button>
+          </div>
+        </template>
+        <template v-else>
+          <span class="pb-msg pb-waiting">Waiting for host…</span>
+        </template>
       </div>
     </transition>
 
@@ -31,9 +37,9 @@
       </div>
     </transition>
     <header class="topbar">
-      <router-link to="/" class="ui-btn ui-btn--ghost back">
+      <button class="ui-btn ui-btn--ghost back" type="button" @click="handleBack()">
         <span aria-hidden="true">←</span> Home
-      </router-link>
+      </button>
       <div class="title-block">
         <span class="title">Ludo</span>
         <span v-if="playerActive" class="turn-line">
@@ -48,9 +54,9 @@
 
     <div class="layout">
       <div class="corners-col">
-        <PlayerCard v-if="playerSide2" :player="playerSide2" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide2" :player="playerSide2" :offline="isPlayerDisconnected(playerSide2)" @turn_dice="_turnDice()" />
         <div class="corners-spacer"></div>
-        <PlayerCard v-if="playerSide1" :player="playerSide1" :diceTop="true" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide1" :player="playerSide1" :diceTop="true" :offline="isPlayerDisconnected(playerSide1)" @turn_dice="_turnDice()" />
       </div>
 
       <main class="board-stage">
@@ -66,9 +72,9 @@
       </main>
 
       <div class="corners-col">
-        <PlayerCard v-if="playerSide3" :player="playerSide3" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide3" :player="playerSide3" :offline="isPlayerDisconnected(playerSide3)" @turn_dice="_turnDice()" />
         <div class="corners-spacer"></div>
-        <PlayerCard v-if="playerSide4" :player="playerSide4" :diceTop="true" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide4" :player="playerSide4" :diceTop="true" :offline="isPlayerDisconnected(playerSide4)" @turn_dice="_turnDice()" />
       </div>
     </div>
   </div>
@@ -129,6 +135,7 @@ export default defineComponent({
       return store.getters['marbles/isAllAtFinal'](this.playerActive);
     },
     mySlotIndex(): number | null { return store.getters['room/mySlotIndex']; },
+    isOwner(): boolean { return store.getters['room/isOwner']; },
     isMyTurn(): boolean {
       const pa = this.playerActive;
       if (!pa || this.mySlotIndex === null) return false;
@@ -167,6 +174,20 @@ export default defineComponent({
 
   methods: {
     focusBoard() { (this.$el as HTMLElement).focus(); },
+
+    handleBack() {
+      if (isMultiplayer()) {
+        sendIntent({ type: 'LEAVE_ROOM' });
+        disconnect();
+        store.commit('room/clear');
+      }
+      this.$router.push('/');
+    },
+
+    isPlayerDisconnected(player: Player | null): boolean {
+      if (!player || !this.disconnectedPlayer || !isMultiplayer()) return false;
+      return player.side === (this.disconnectedPlayer as { slotIndex: number }).slotIndex + 1;
+    },
 
     sendMpIntent(type: 'CONTINUE_WITHOUT' | 'REPLACE_WITH_AI', slotIndex: number) {
       sendIntent({ type, slotIndex });
@@ -479,6 +500,16 @@ export default defineComponent({
   &.side-3 { background: $brand-3; }
   &.side-4 { background: $brand-4; }
 }
+.disconnect-dot {
+  background: $brand-1;
+  box-shadow: 0 0 0 4px rgba(220, 80, 90, 0.18);
+  animation: disconnect-pulse 1.8s $ease-out infinite;
+}
+@keyframes disconnect-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(220, 80, 90, 0.18); }
+  50%       { box-shadow: 0 0 0 7px rgba(220, 80, 90, 0.08); }
+}
+.pb-waiting { color: $text-3; font-style: italic; margin-left: 0.25rem; }
 .pb-text {
   display: flex; align-items: baseline; gap: 0.4rem;
 }

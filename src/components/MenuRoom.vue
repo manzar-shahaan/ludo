@@ -38,6 +38,10 @@
         <h2 class="card-title">Room Lobby</h2>
       </div>
 
+      <transition name="toast">
+        <div v-if="ownerToast" class="owner-toast">You are now the room owner</div>
+      </transition>
+
       <div class="code-block">
         <span class="code-label">Room Code</span>
         <span class="code-value">{{ roomCode }}</span>
@@ -104,7 +108,9 @@ export default defineComponent({
     return {
       name: '',
       errorMsg: '',
-      _unsub: null as (() => void) | null
+      ownerToast: false,
+      _unsub: null as (() => void) | null,
+      _ownerToastTimer: null as ReturnType<typeof setTimeout> | null
     };
   },
 
@@ -152,6 +158,12 @@ export default defineComponent({
         });
       } else if (msg.type === 'SLOTS_UPDATED') {
         store.commit('room/setSlots', msg.slots);
+      } else if (msg.type === 'OWNER_CHANGED') {
+        if (store.getters['room/mySlotIndex'] === msg.newOwnerSlotIndex) {
+          this.ownerToast = true;
+          if (this._ownerToastTimer) clearTimeout(this._ownerToastTimer);
+          this._ownerToastTimer = setTimeout(() => { this.ownerToast = false; }, 4000);
+        }
       } else if (msg.type === 'ERROR') {
         this.errorMsg = msg.message;
       }
@@ -160,6 +172,7 @@ export default defineComponent({
 
   beforeUnmount() {
     this._unsub?.();
+    if (this._ownerToastTimer) clearTimeout(this._ownerToastTimer);
   },
 
   methods: {
@@ -391,6 +404,23 @@ export default defineComponent({
 .action-btn {
   width: 100%;
 }
+
+// ── Owner toast ────────────────────────────────────────────────────────────────
+
+.owner-toast {
+  font-size: 0.875rem;
+  color: hsl(140, 50%, 60%);
+  background: rgba(74, 200, 110, 0.1);
+  border: 1px solid rgba(74, 200, 110, 0.25);
+  border-radius: $border-radius-sm;
+  padding: 0.6rem 0.875rem;
+  text-align: center;
+}
+
+.toast-enter-active { transition: opacity 200ms $ease-out, transform 200ms $ease-out; }
+.toast-leave-active { transition: opacity 150ms $ease-out, transform 150ms $ease-out; }
+.toast-enter-from   { opacity: 0; transform: translateY(-6px); }
+.toast-leave-to     { opacity: 0; transform: translateY(-4px); }
 
 // ── Error ──────────────────────────────────────────────────────────────────────
 

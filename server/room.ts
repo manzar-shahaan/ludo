@@ -58,6 +58,7 @@ export class Room {
   private _rollResolve: (() => void) | null = null;
   private _moveResolve: ((marbleId: number) => void) | null = null;
   private _pendingActions: MoveAction[] = [];
+  private _disconnectResolve: (() => void) | null = null;
 
   private _settings: Partial<GameSettings>;
 
@@ -121,11 +122,23 @@ export class Room {
 
     if (this.phase === 'PLAYING') {
       this.broadcast({ type: 'PLAYER_DISCONNECTED', slotIndex: slot.slotIndex, playerName: slot.name });
-      // If the disconnected player was waiting to roll or move, cancel the wait so the loop unblocks
-      this._rollResolve?.();
-      this._moveResolve?.(this._pendingActions[0]?.marble.id ?? -1);
-      this._rollResolve = null;
-      this._moveResolve = null;
+      // If it's this player's turn mid-action, unblock the immediate await so the loop
+      // can reach the per-turn disconnect-pause check. We do NOT auto-continue their turn.
+      const active = this.gs?.board.playerActive;
+      if (active && active.side === slot.slotIndex + 1) {
+        this._rollResolve?.();
+        this._rollResolve = null;
+        if (this._moveResolve) {
+          // Reset marble selection state cleanly
+          this._pendingActions = [];
+          if (this.gs) this.gs.marbles = this.gs.marbles.map(m => ({ ...m, isMoveable: false }));
+          this._moveResolve(-1);
+          this._moveResolve = null;
+        }
+      }
+    } else {
+      // Lobby: notify others that the slot is now empty
+      this.broadcastSlots();
     }
 
     // Promote next human as owner if the owner left
@@ -144,6 +157,9 @@ export class Room {
     if (!slot) return null;
     slot.ws = ws;
     slot.isConnected = true;
+    // Unblock the per-turn disconnect-pause in the game loop
+    this._disconnectResolve?.();
+    this._disconnectResolve = null;
     return slot;
   }
 
@@ -199,21 +215,23 @@ export class Room {
   private _continueWithout(slotIndex: number): void {
     const slot = this.slots[slotIndex];
     if (!slot || !this.gs) return;
-    slot.isAI = true;  // convert to AI so the loop skips waiting
+    slot.isAI = true;
     const player = this.gs.players.find(p => p.side === slotIndex + 1);
     if (player) player.isAI = true;
-    // Unblock any pending wait
-    this._rollResolve?.();
-    this._moveResolve?.(this._pendingActions[0]?.marble.id ?? -1);
-    this._rollResolve = null;
-    this._moveResolve = null;
+    // Unblock the per-turn disconnect-pause; loop will proceed as AI
+    this._disconnectResolve?.();
+    this._disconnectResolve = null;
+    this.broadcastState();
   }
 
   private _replaceWithAI(slotIndex: number): void {
-    this._continueWithout(slotIndex); // same effect
-    this.slots[slotIndex].name = `CPU ${slotIndex + 1}`;
-    const player = this.gs?.players.find(p => p.side === slotIndex + 1);
+    const slot = this.slots[slotIndex];
+    if (!slot || !this.gs) return;
+    // Rename before converting so broadcastState() inside _continueWithout carries the new name
+    slot.name = `CPU ${slotIndex + 1}`;
+    const player = this.gs.players.find(p => p.side === slotIndex + 1);
     if (player) player.name = `CPU ${slotIndex + 1}`;
+    this._continueWithout(slotIndex);
   }
 
   // ─── Broadcasting ─────────────────────────────────────────────────────────────
@@ -335,6 +353,19 @@ export class Room {
       const player = this._activePlayer();
       if (!player) break;
 
+      // ── Pause if this human player is disconnected ─────────────────────────
+      // Wait here until the owner decides (Continue without / Replace with AI)
+      // or the player reconnects. The loop auto-exits once player.isAI or slot.isConnected.
+      {
+        const slot = this.slots[player.side - 1];
+        while (slot && !player.isAI && !slot.isConnected) {
+          g.board.boardStatus = BoardStatus.WAITING_TURN_DICE;
+          this.broadcastState();
+          await new Promise<void>(res => { this._disconnectResolve = res; });
+          this._disconnectResolve = null;
+        }
+      }
+
       // ── Roll phase ─────────────────────────────────────────────────────────
       g.board.boardStatus = BoardStatus.WAITING_TURN_DICE;
       this.broadcastState();
@@ -382,6 +413,15 @@ export class Room {
 
         const marbleId = await new Promise<number>(res => { this._moveResolve = res; });
         this._pendingActions = [];
+        if (marbleId === -1) {
+          // Player disconnected mid-choice — skip remainder of turn; the disconnect-pause
+          // at the top of the next iteration will hold the game until owner decides.
+          g.marbles = g.marbles.map(m => ({ ...m, isMoveable: false }));
+          g.board.diceInfo = g.board.diceInfo ? { ...g.board.diceInfo, isDone: true } : null;
+          changeTurn = false; // keep same player active for the disconnect-pause
+          this.broadcastState();
+          continue;
+        }
         action = actions.find(a => a.marble.id === marbleId) ?? actions[0];
       }
 

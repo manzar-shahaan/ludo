@@ -1,12 +1,13 @@
 <template>
-  <div class="player-card" :class="[`side-${player.side}`, { active: isActive, winner: isWinner }]">
+  <div class="player-card" :class="[`side-${player.side}`, { active: isActive, winner: isWinner, offline: offline }]">
     <Dice v-if="isActive && !isWinner && diceTop" class="card-dice card-dice--top" @turn_dice="$emit('turn_dice')" />
     <div class="card-row">
       <div class="dot" aria-hidden="true"></div>
       <div class="meta">
         <div class="name">
           {{ player.name }}
-          <span v-if="player.isAI" class="tag">AI</span>
+          <span v-if="offline" class="tag tag--offline">Offline</span>
+          <span v-else-if="player.isAI" class="tag">AI</span>
         </div>
         <div class="progress">
           <span class="count">{{ marblesHome }}/{{ marblesTotal }}</span>
@@ -33,7 +34,8 @@ export default defineComponent({
 
   props: {
     player:   { type: Object as PropType<Player>, required: true },
-    diceTop:  { type: Boolean, default: false }
+    diceTop:  { type: Boolean, default: false },
+    offline:  { type: Boolean, default: false }
   },
 
   computed: {
@@ -111,6 +113,12 @@ export default defineComponent({
 .tag {
   font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: $text-3; padding: 1px 6px; border-radius: 999px; border: 1px solid $hairline;
+  &--offline { color: $brand-1; border-color: rgba(220, 80, 90, 0.35); }
+}
+.player-card.offline {
+  opacity: 0.5;
+  filter: grayscale(0.5);
+  transition: opacity 400ms $ease-out, filter 400ms $ease-out;
 }
 .progress { display: flex; align-items: baseline; gap: 0.4rem; margin-top: 2px; }
 .count { font-family: $font-family-numeric; font-weight: 600; color: $text-1; }

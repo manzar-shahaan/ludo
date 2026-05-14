@@ -49,9 +49,8 @@ export function onError(handler: (msg: string) => void): () => void {
 function serverWsUrl(): string {
   const { protocol, hostname, port } = window.location;
   const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-  // In dev (Vite proxy not configured) the server runs on 8080 same host
   const serverPort = import.meta.env.VITE_SERVER_PORT ?? port ?? '8080';
-  return `${wsProtocol}//${hostname}:${serverPort}`;
+  return `${wsProtocol}//${hostname}:${serverPort}/ws`;
 }
 
 // ─── Connect ──────────────────────────────────────────────────────────────────
@@ -92,6 +91,7 @@ function _handleServerMessage(msg: ServerMessage): void {
 
     case 'GAME_STARTED':
       store.commit('applyServerSnapshot', msg.state);
+      store.commit('board/update', { key: 'shouldShowMenu', value: false });
       store.commit('updateGameStatus', GameStatus.PLAYING);
       break;
 
@@ -110,6 +110,7 @@ function _handleServerMessage(msg: ServerMessage): void {
           isOwner: s.slotIndex === msg.newOwnerSlotIndex,
         }));
         _slotUpdateHandlers.forEach(h => h(_roomInfo!.slots));
+        store.commit('room/setSlots', _roomInfo.slots);
       }
       break;
 

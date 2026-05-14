@@ -14,7 +14,7 @@ const PORT = Number(process.env.PORT ?? 8080);
 
 const app = express();
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
 // Serve the Vite SPA build. Fall through to index.html for client-side routing.
 const distDir = path.join(__dirname, '..', 'dist');

@@ -651,4 +651,16 @@ export default defineComponent({
 .dice-bar-leave-active { transition: transform 180ms $ease-out, opacity 140ms $ease-out; }
 .dice-bar-enter-from   { transform: translateY(100%); opacity: 0; }
 .dice-bar-leave-to     { transform: translateY(100%); opacity: 0; }
+
+// ── Board arm: junction (outermost endpoint) squares ─────────────────────────
+// The outermost endpoint of each home stretch ([13,7] [7,1] [1,7] [7,13]) is a
+// shared junction square traversed by all players — render it neutral.
+// Uses !important because Step.vue scoped .type-3.side-X rules share equal specificity.
+.row-13.column-7 .inner,
+.row-7.column-1  .inner,
+.row-1.column-7  .inner,
+.row-7.column-13 .inner {
+  background: $bg-3 !important;
+  box-shadow: inset 0 0 0 1px $hairline !important;
+}
 </style>

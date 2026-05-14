@@ -176,16 +176,38 @@ export default defineComponent({
 }
 
 @media (max-width: 700px) {
+  // Override the absolute-cover mixin — needs !important because mixin and
+  // media-query rules share equal specificity in scoped CSS.
   .menu-overlay {
-    // Promote to full-screen fixed overlay so the setup form isn't cramped inside the board square
-    position: fixed;
-    inset: 0;
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
     border-radius: 0;
     z-index: 30;
+    // Fully opaque so the board behind doesn't create a second visual container
+    background: $bg-1;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    // Stack content from top, let overlay scroll
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding: 2rem 1rem env(safe-area-inset-bottom, 1rem);
   }
+  // Card merges visually into the overlay — one unified surface
   .menu-card {
-    max-height: 90vh;
-    max-height: 90svh; // tighter on mobile chrome where vh includes url-bar
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+    max-width: 480px;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0;
   }
 }
 </style>

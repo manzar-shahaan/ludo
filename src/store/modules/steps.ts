@@ -44,11 +44,17 @@ export default {
       ];
     },
     allPaths: (state: any, getters: any) => ({ side }: Player) => {
+      // The outermost endpoint of each side's home stretch is a shared junction square:
+      // all players traverse it on the outer circuit, then only the matching side
+      // turns into the remaining 5 inner endpoint squares.
+      const junc = (s: number) => [getters.sideEndpoints({ side: s })[0]];
+      const home = (s: number) => getters.sideEndpoints({ side: s }).slice(1);
+      const c = (s: number) => getters.sideCommons({ side: s });
       switch (side) {
-        case 1: return [...getters.sideCommons({ side: 1 }), ...getters.sideCommons({ side: 2 }), ...getters.sideCommons({ side: 3 }), ...getters.sideCommons({ side: 4 }), ...getters.sideEndpoints({ side: 1 }), getters.finalStep];
-        case 2: return [...getters.sideCommons({ side: 2 }), ...getters.sideCommons({ side: 3 }), ...getters.sideCommons({ side: 4 }), ...getters.sideCommons({ side: 1 }), ...getters.sideEndpoints({ side: 2 }), getters.finalStep];
-        case 3: return [...getters.sideCommons({ side: 3 }), ...getters.sideCommons({ side: 4 }), ...getters.sideCommons({ side: 1 }), ...getters.sideCommons({ side: 2 }), ...getters.sideEndpoints({ side: 3 }), getters.finalStep];
-        case 4: return [...getters.sideCommons({ side: 4 }), ...getters.sideCommons({ side: 1 }), ...getters.sideCommons({ side: 2 }), ...getters.sideCommons({ side: 3 }), ...getters.sideEndpoints({ side: 4 }), getters.finalStep];
+        case 1: return [...c(1), ...junc(2), ...c(2), ...junc(3), ...c(3), ...junc(4), ...c(4), ...junc(1), ...home(1), getters.finalStep];
+        case 2: return [...c(2), ...junc(3), ...c(3), ...junc(4), ...c(4), ...junc(1), ...c(1), ...junc(2), ...home(2), getters.finalStep];
+        case 3: return [...c(3), ...junc(4), ...c(4), ...junc(1), ...c(1), ...junc(2), ...c(2), ...junc(3), ...home(3), getters.finalStep];
+        case 4: return [...c(4), ...junc(1), ...c(1), ...junc(2), ...c(2), ...junc(3), ...c(3), ...junc(4), ...home(4), getters.finalStep];
       }
     }
   }

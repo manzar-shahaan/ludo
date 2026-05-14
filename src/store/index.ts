@@ -5,6 +5,7 @@ import players from '@/store/modules/players';
 import marbles from '@/store/modules/marbles';
 import settings from '@/store/modules/settings';
 import board from '@/store/modules/board';
+import room from '@/store/modules/room';
 import { GameStatus } from '@/types/types';
 import { STORAGE_KEY } from '@/constants';
 import type { GameSnapshot } from '@/net/types';
@@ -62,7 +63,8 @@ const store = createStore({
     players,
     marbles,
     settings,
-    board
+    board,
+    room
   }
 });
 

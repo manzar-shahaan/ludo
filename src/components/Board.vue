@@ -3,6 +3,21 @@
     <Confetti v-if="placementBanner || playerWinner" :side="placementBanner ? placementBanner.player.side : playerWinner?.side" />
 
     <transition name="banner">
+      <div v-if="disconnectedPlayer" class="placement-banner disconnect-banner">
+        <span class="pb-text">
+          <strong class="pb-name">{{ disconnectedPlayer.name }}</strong>
+          <span class="pb-msg">disconnected</span>
+        </span>
+        <div v-if="mySlotIndex === 0" class="pb-actions">
+          <button class="ui-btn ui-btn--ghost pb-btn" type="button"
+            @click="sendMpIntent('CONTINUE_WITHOUT', disconnectedPlayer.slotIndex)">Continue without</button>
+          <button class="ui-btn ui-btn--primary pb-btn" type="button"
+            @click="sendMpIntent('REPLACE_WITH_AI', disconnectedPlayer.slotIndex)">Replace with AI</button>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="banner">
       <div v-if="placementBanner" class="placement-banner">
         <span class="pb-dot" :class="`side-${placementBanner.player.side}`"></span>
         <div class="pb-text">
@@ -76,6 +91,9 @@ import {
 } from '@/helpers';
 import { SLEEP_BETWEEN_TURNS } from '@/constants';
 import type { PlayerSlot } from '@/store/modules/settings';
+import { isMultiplayer, sendIntent, disconnect } from '@/net/transport';
+import type { ServerMessage } from '@/net/types';
+import { wsClient } from '@/net/client';
 
 export default defineComponent({
   name: 'BoardGame',
@@ -84,10 +102,12 @@ export default defineComponent({
 
   data() {
     return {
-      _turnDiceResolve: null as (() => void) | null,
-      _resumeResolve:   null as (() => void) | null,
-      _bannerResolve:   null as ((stop: boolean) => void) | null,
-      placementBanner:  null as { player: Player; rank: number } | null,
+      _turnDiceResolve:   null as (() => void) | null,
+      _resumeResolve:     null as (() => void) | null,
+      _bannerResolve:     null as ((stop: boolean) => void) | null,
+      placementBanner:    null as { player: Player; rank: number } | null,
+      _mpUnsubscribe:     null as (() => void) | null,
+      disconnectedPlayer: null as { slotIndex: number; name: string } | null,
     };
   },
 
@@ -107,20 +127,62 @@ export default defineComponent({
     isGameOver(): boolean {
       if (!this.playerActive) return false;
       return store.getters['marbles/isAllAtFinal'](this.playerActive);
-    }
+    },
+    mySlotIndex(): number | null { return store.getters['room/mySlotIndex']; },
+    isMyTurn(): boolean {
+      const pa = this.playerActive;
+      if (!pa || this.mySlotIndex === null) return false;
+      return pa.side === (this.mySlotIndex as number) + 1 && !pa.isAI;
+    },
+  },
+
+  watch: {
+    boardStatus(newStatus: BoardStatus) {
+      if (!isMultiplayer()) return;
+      if (newStatus === BoardStatus.PLAYER_IS_THINKING && this.isMyTurn) {
+        this.setMoveableMarbles(this.getAvailableActions());
+      } else {
+        store.dispatch('marbles/unsetMoveableAll');
+      }
+    },
   },
 
   mounted() {
     this.focusBoard();
-    this.continueGame();
+    if (isMultiplayer()) {
+      this._setupMultiplayer();
+    } else {
+      this.continueGame();
+    }
   },
 
   unmounted() {
     store.dispatch('updateGameStatus', GameStatus.NOT_STARTED);
+    if (isMultiplayer()) {
+      (this._mpUnsubscribe as (() => void) | null)?.();
+      disconnect();
+      store.commit('room/clear');
+    }
   },
 
   methods: {
     focusBoard() { (this.$el as HTMLElement).focus(); },
+
+    sendMpIntent(type: 'CONTINUE_WITHOUT' | 'REPLACE_WITH_AI', slotIndex: number) {
+      sendIntent({ type, slotIndex });
+      this.disconnectedPlayer = null;
+    },
+
+    _setupMultiplayer() {
+      store.commit('board/update', { key: 'shouldShowMenu', value: false });
+      this._mpUnsubscribe = wsClient.onMessage((msg: ServerMessage) => {
+        if (msg.type === 'PLAYER_DISCONNECTED') {
+          this.disconnectedPlayer = { slotIndex: msg.slotIndex, name: msg.playerName };
+        } else if (msg.type === 'PLAYER_RECONNECTED') {
+          this.disconnectedPlayer = null;
+        }
+      });
+    },
 
     continueGame() {
       if (this.gameStatus === GameStatus.PLAYING) {
@@ -236,6 +298,10 @@ export default defineComponent({
     },
 
     async onClickMarble(marble: Marble) {
+      if (isMultiplayer()) {
+        if (marble.isMoveable) sendIntent({ type: 'MOVE_MARBLE', marbleId: marble.id });
+        return;
+      }
       if (!canMove(marble, this.playerActive)) return;
       const moveAction = createMoveAction({ player: this.playerActive, marble, diceInfo: this.diceInfo });
       beforeMoveActions(moveAction, this.playerActive);
@@ -276,6 +342,10 @@ export default defineComponent({
     },
 
     async _turnDice(): Promise<void> {
+      if (isMultiplayer()) {
+        sendIntent({ type: 'ROLL_DICE' });
+        return;
+      }
       await turnDice(this.playerActive);
       // Wait for the dice animation + the 2 s callout gap before the game proceeds.
       // Animation duration scales linearly with diceSpeed (~2050 ms at Normal/1.5).
@@ -287,6 +357,10 @@ export default defineComponent({
     },
 
     keySpacePressed() {
+      if (isMultiplayer()) {
+        if (this.isMyTurn && this.boardStatus === BoardStatus.WAITING_TURN_DICE) this._turnDice();
+        return;
+      }
       if (this.playerActive?.isAI || this.boardStatus !== BoardStatus.WAITING_TURN_DICE) return;
       this._turnDice();
     },

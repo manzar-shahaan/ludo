@@ -7,10 +7,8 @@ export default createRouter({
   routes: [
     { path: '/', name: 'home', component: Home },
     { path: '/play', name: 'play', component: Play },
-    {
-      path: '/about',
-      name: 'about',
-      component: () => import('./views/About.vue')
-    }
+    { path: '/host', name: 'host', component: () => import('./components/MenuRoom.vue') },
+    { path: '/join', name: 'join', component: () => import('./components/MenuJoin.vue') },
+    { path: '/about', name: 'about', component: () => import('./views/About.vue') }
   ]
 });

@@ -4,6 +4,7 @@
 import { wsClient } from './client';
 import type { Intent, ServerMessage, GameSnapshot, RoomSlot } from './types';
 import store from '@/store/index';
+import { GameStatus } from '@/types/types';
 
 // ─── Mode detection ───────────────────────────────────────────────────────────
 
@@ -90,6 +91,10 @@ function _handleServerMessage(msg: ServerMessage): void {
       break;
 
     case 'GAME_STARTED':
+      store.commit('applyServerSnapshot', msg.state);
+      store.commit('updateGameStatus', GameStatus.PLAYING);
+      break;
+
     case 'STATE_UPDATE':
       store.commit('applyServerSnapshot', msg.state);
       break;

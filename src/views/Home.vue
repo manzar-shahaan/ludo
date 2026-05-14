@@ -12,8 +12,10 @@
         <p class="subtitle">A modern take on a classic board.</p>
       </div>
       <div class="cta">
-        <router-link class="ui-btn ui-btn--primary ui-btn--lg" to="/play">Play</router-link>
-        <router-link class="ui-btn ui-btn--lg" to="/about">About</router-link>
+        <router-link class="ui-btn ui-btn--primary ui-btn--lg" to="/play">Single Player</router-link>
+        <router-link class="ui-btn ui-btn--lg" to="/host">Create Room</router-link>
+        <router-link class="ui-btn ui-btn--lg" to="/join">Join Room</router-link>
+        <router-link class="ui-btn ui-btn--ghost" to="/about">About</router-link>
       </div>
     </div>
 
@@ -33,6 +35,12 @@ export default defineComponent({
 
   data() {
     return { showBuildInfo: false };
+  },
+
+  mounted() {
+    const params = new URLSearchParams(window.location.search);
+    const roomCode = params.get('room');
+    if (roomCode) this.$router.replace(`/join?code=${roomCode.toUpperCase()}`);
   },
 
   computed: {

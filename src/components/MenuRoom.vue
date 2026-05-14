@@ -65,8 +65,22 @@
           <span class="slot-badge" :class="slot.isAI ? 'badge--ai' : slot.isConnected ? 'badge--ready' : 'badge--waiting'">
             {{ slot.isAI ? 'AI' : slot.isConnected ? 'Ready' : 'Waiting…' }}
           </span>
+          <button
+            v-if="isOwner && slot.isAI && slots.length > 2"
+            class="remove-slot-btn"
+            type="button"
+            :aria-label="`Remove ${slot.name}`"
+            @click="onRemoveSlot(slot.slotIndex)"
+          >×</button>
         </li>
       </ul>
+
+      <button
+        v-if="isOwner && slots.length < 4"
+        class="ui-btn ui-btn--ghost add-ai-btn"
+        type="button"
+        @click="onAddAI"
+      >+ Add AI player</button>
 
       <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
 
@@ -182,6 +196,12 @@ export default defineComponent({
     },
     onStart() {
       sendIntent({ type: 'START_GAME' });
+    },
+    onAddAI() {
+      sendIntent({ type: 'ADD_AI_SLOT' });
+    },
+    onRemoveSlot(slotIndex: number) {
+      sendIntent({ type: 'REMOVE_SLOT', slotIndex });
     },
     onLeave() {
       sendIntent({ type: 'LEAVE_ROOM' });
@@ -391,6 +411,30 @@ export default defineComponent({
     background: $surface;
     color: $text-3;
   }
+}
+
+.remove-slot-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid $hairline;
+  background: transparent;
+  color: $text-3;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 150ms, color 150ms, border-color 150ms;
+  &:hover { background: rgba(220, 80, 90, 0.12); color: $brand-1; border-color: rgba(220, 80, 90, 0.35); }
+}
+
+.add-ai-btn {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  align-self: flex-start;
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────

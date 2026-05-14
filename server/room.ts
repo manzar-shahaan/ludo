@@ -105,6 +105,9 @@ export class Room {
   removeSlot(slotIndex: number): boolean {
     if (this.phase !== 'LOBBY') return false;
     if (slotIndex === 0) return false; // can't remove owner
+    if (this.slots.length <= 2) return false; // minimum 2 players
+    const slot = this.slots.find(s => s.slotIndex === slotIndex);
+    if (!slot?.isAI) return false; // can only remove AI slots
     this.slots = this.slots.filter(s => s.slotIndex !== slotIndex);
     this.slots.forEach((s, i) => s.slotIndex = i); // re-index
     return true;

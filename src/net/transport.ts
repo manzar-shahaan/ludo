@@ -9,8 +9,7 @@ import { GameStatus } from '@/types/types';
 // ─── Mode detection ───────────────────────────────────────────────────────────
 
 export function isMultiplayer(): boolean {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('multiplayer') || params.has('room');
+  return store.getters['room/code'] !== null;
 }
 
 // ─── Room state (populated from server messages) ──────────────────────────────

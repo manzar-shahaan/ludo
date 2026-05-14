@@ -77,6 +77,12 @@
         <PlayerCard v-if="playerSide4" :player="playerSide4" :diceTop="true" :offline="isPlayerDisconnected(playerSide4)" @turn_dice="_turnDice()" />
       </div>
     </div>
+
+    <transition name="dice-bar">
+      <div v-if="showMobileDiceBar" class="mobile-dice-bar">
+        <Dice @turn_dice="_turnDice()" />
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -88,6 +94,7 @@ import Marbles from '@/components/Marbles.vue';
 import MenuBoard from '@/components/MenuBoard.vue';
 import PlayerCard from '@/components/PlayerCard.vue';
 import Confetti from '@/components/Confetti.vue';
+import Dice from '@/components/Dice.vue';
 import { Player, MoveAction, Marble, BoardStatus, GameStatus, DiceInfo } from '@/types/types';
 import {
   getAvailableActions, chooseAction, hasMultipleAvailableActions, canMove,
@@ -104,7 +111,7 @@ import { wsClient } from '@/net/client';
 export default defineComponent({
   name: 'BoardGame',
 
-  components: { Road, Marbles, MenuBoard, PlayerCard, Confetti },
+  components: { Road, Marbles, MenuBoard, PlayerCard, Confetti, Dice },
 
   data() {
     return {
@@ -140,6 +147,13 @@ export default defineComponent({
       const pa = this.playerActive;
       if (!pa || this.mySlotIndex === null) return false;
       return pa.side === (this.mySlotIndex as number) + 1 && !pa.isAI;
+    },
+    showMobileDiceBar(): boolean {
+      if (!this.playerActive || this.playerActive.isAI) return false;
+      const relevant = [BoardStatus.WAITING_TURN_DICE, BoardStatus.TURNING_DICE, BoardStatus.PLAYER_IS_THINKING].includes(this.boardStatus);
+      if (!relevant) return false;
+      if (isMultiplayer()) return this.boardStatus === BoardStatus.TURNING_DICE || this.isMyTurn;
+      return true;
     },
   },
 
@@ -364,7 +378,9 @@ export default defineComponent({
 
     async _turnDice(): Promise<void> {
       if (isMultiplayer()) {
-        sendIntent({ type: 'ROLL_DICE' });
+        if (this.isMyTurn && this.boardStatus === BoardStatus.WAITING_TURN_DICE) {
+          sendIntent({ type: 'ROLL_DICE' });
+        }
         return;
       }
       await turnDice(this.playerActive);
@@ -523,31 +539,108 @@ export default defineComponent({
 .banner-enter-from   { opacity: 0; transform: translateX(-50%) translateY(-12px); }
 .banner-leave-to     { opacity: 0; transform: translateX(-50%) translateY(-8px); }
 
-@media (max-width: 1080px) {
+// ── Tablet: shrink side columns ─────────────────────────────────────────────
+@media (max-width: 1100px) {
   .corners-col { flex: 0 0 200px; }
 }
-@media (max-width: 800px) {
+
+// ── Mobile (≤700px): board-first, 2×2 player grid, bottom dice sheet ─────────
+@media (max-width: 700px) {
   .layout {
     flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.5rem;
     height: auto;
     overflow: visible;
     align-items: stretch;
   }
+
+  .board-stage {
+    order: -1; // board appears before the player card rows
+    flex: none;
+    width: 100%;
+    min-height: 0;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .board-square {
+    width: 100%;
+    height: auto;       // aspect-ratio determines height
+    max-width: none;
+    margin: 0;
+  }
+
   .corners-col {
     flex: none;
     width: 100%;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.4rem;
+
+    .corners-spacer { display: none; }
+    .player-card    { flex: 1 1 0; min-width: 0; }
+
+    // Dice is promoted to the mobile-dice-bar; hide it inside player cards
+    .card-dice { display: none; }
   }
-  .corners-spacer { display: none; }
-  .corners-col .player-card { flex: 1 1 200px; }
-  .board-stage { width: 100%; }
-  .board-square {
-    height: auto;
-    width: min(100%, 80vh);
-    max-width: 100%;
-    margin: 0 auto;
+
+  // Compact topbar on small screens
+  .topbar {
+    padding: 0.6rem 0.75rem;
+    .back, .menu-btn { font-size: 0.8rem; padding: 0.35rem 0.65rem; }
+    .title-block {
+      gap: 0.45rem;
+      .title { font-size: 0.9rem; }
+      .turn-line { font-size: 0.72rem; padding: 3px 8px; gap: 0.35rem; }
+    }
   }
 }
+
+// ── Mobile dice bar ────────────────────────────────────────────────────────────
+.mobile-dice-bar {
+  display: none; // hidden on tablet/desktop
+
+  @media (max-width: 700px) {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: $bg-2;
+    border-top: 1px solid $hairline-strong;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    // Compact horizontal layout inside the bar
+    .dice-area {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 0.65rem 1rem;
+      gap: 0.5rem 0.85rem;
+    }
+    .dice-wrap { flex: 0 0 auto; width: 52px; height: 52px; }
+    .die        { width: 46px; height: 46px; border-radius: 11px; padding: 8px; gap: 2px; }
+    .pip        { width: 8px; height: 8px; }
+    .roll-btn   { flex: 1; min-width: 80px; }
+    .hint       { flex: 1; font-size: 0.82rem; min-height: auto; text-align: left; }
+    .callout    {
+      flex: 0 0 100%;           // callout spans full width on its own row
+      background: transparent;
+      border: none;
+      padding: 0 0 0.15rem;
+      justify-content: flex-start;
+      gap: 0.4rem;
+    }
+    .callout-name { font-size: 0.88rem; }
+    .callout-text { font-size: 0.8rem; }
+    .callout-value { font-size: 1.35rem; }
+  }
+}
+
+.dice-bar-enter-active { transition: transform 220ms $ease-out, opacity 180ms $ease-out; }
+.dice-bar-leave-active { transition: transform 180ms $ease-out, opacity 140ms $ease-out; }
+.dice-bar-enter-from   { transform: translateY(100%); opacity: 0; }
+.dice-bar-leave-to     { transform: translateY(100%); opacity: 0; }
 </style>

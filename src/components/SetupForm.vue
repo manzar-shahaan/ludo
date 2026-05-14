@@ -1,10 +1,24 @@
 <template>
   <form class="setup" @submit.prevent="onSubmit">
     <div class="row">
+      <label class="row-label">Total players</label>
+      <div class="seg">
+        <button
+          v-for="n in [2, 3, 4]"
+          :key="n"
+          type="button"
+          class="seg-btn"
+          :class="{ active: totalCount === n }"
+          @click="setTotalCount(n)"
+        >{{ n }}</button>
+      </div>
+    </div>
+
+    <div class="row">
       <label class="row-label">Players in person</label>
       <div class="seg">
         <button
-          v-for="n in [1, 2, 3, 4]"
+          v-for="n in [1, 2, 3, 4].filter(n => n <= totalCount)"
           :key="n"
           type="button"
           class="seg-btn"
@@ -61,20 +75,25 @@ export default defineComponent({
   data() {
     const seed: PlayerSlot[] = this.initialRoster || store.getters['settings/lastRoster'];
     const humans = seed.filter((s) => !s.isAI);
-    const humanCount = Math.max(1, Math.min(4, humans.length || 1));
+    const totalCount = Math.max(2, Math.min(4, seed.length));
+    const humanCount = Math.max(1, Math.min(totalCount, humans.length || 1));
     const humanNames = Array.from({ length: 4 }, (_, i) =>
       humans[i] ? humans[i].name : `Player ${i + 1}`
     );
-    return { humanCount, humanNames };
+    return { totalCount, humanCount, humanNames };
   },
 
   computed: {
     aiCount(): number {
-      return 4 - this.humanCount;
+      return this.totalCount - this.humanCount;
     }
   },
 
   methods: {
+    setTotalCount(n: number) {
+      this.totalCount = n;
+      if (this.humanCount > n) this.humanCount = n;
+    },
     setHumanCount(n: number) {
       this.humanCount = n;
     },

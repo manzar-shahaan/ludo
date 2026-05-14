@@ -210,6 +210,7 @@ export default defineComponent({
   font-family: $font-family-numeric; font-size: 0.7rem;
   padding: 2px 6px; border-radius: 6px;
   background: rgba(0,0,0,0.18); color: rgba(11,13,16,0.7);
+  @media (max-width: 700px) { display: none; }
 }
 .hint { font-size: 0.85rem; color: $text-2; min-height: 1.2rem; text-align: center; &.dim { color: $text-3; } }
 

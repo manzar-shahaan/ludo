@@ -148,4 +148,21 @@ export default defineComponent({
   width: 64px;
   height: 64px;
 }
+
+// ── Mobile compact layout ──────────────────────────────────────────────────────
+@media (max-width: 700px) {
+  .player-card   { border-radius: $border-radius-sm; }
+  .card-row      { padding: 0.5rem 0.65rem; gap: 0.55rem; }
+  .dot           { width: 10px; height: 10px; }
+  .name          { font-size: 0.8rem; }
+  .progress      { margin-top: 1px; gap: 0.3rem; }
+  .count         { font-size: 0.8rem; }
+  .label         { font-size: 0.7rem; }
+  .active-pill   { font-size: 0.6rem; padding: 2px 6px; }
+  .medal         { font-size: 1rem; }
+  .tag           { font-size: 0.58rem; padding: 0 4px; }
+
+  // Dice moved to the mobile-dice-bar in Board.vue; hide here
+  .card-dice { display: none; }
+}
 </style>

@@ -8,6 +8,7 @@
           {{ player.name }}
           <span v-if="offline" class="tag tag--offline">Offline</span>
           <span v-else-if="player.isAI" class="tag">AI</span>
+          <span v-if="isHost" class="tag tag--host">Host</span>
         </div>
         <div class="progress">
           <span class="count">{{ marblesHome }}/{{ marblesTotal }}</span>
@@ -35,7 +36,8 @@ export default defineComponent({
   props: {
     player:   { type: Object as PropType<Player>, required: true },
     diceTop:  { type: Boolean, default: false },
-    offline:  { type: Boolean, default: false }
+    offline:  { type: Boolean, default: false },
+    isHost:   { type: Boolean, default: false }
   },
 
   computed: {
@@ -114,6 +116,7 @@ export default defineComponent({
   font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: $text-3; padding: 1px 6px; border-radius: 999px; border: 1px solid $hairline;
   &--offline { color: $brand-1; border-color: rgba(220, 80, 90, 0.35); }
+  &--host    { color: $accent;  border-color: rgba(124, 156, 255, 0.35); }
 }
 .player-card.offline {
   opacity: 0.5;

@@ -36,8 +36,8 @@ $body-bg: $bg-0;
 $body-color: $text-1;
 
 // Geometry
-$step-width: 7.0422535211%; // 13 cells: 13w + 12*(w/10) = 100 → 14.2w = 100
-$step-gutter: 0.7042253521%;
+$step-width: 6.0975609756%; // 15 cells: 15w + 14*(w/10) = 100 → 16.4w = 100
+$step-gutter: 0.6097560976%;
 $board-width: 720px; // logical max; CSS aspect-ratio handles fit
 $golden-ratio: 1.61803398875;
 

@@ -15,7 +15,12 @@ const persistMutations: string[] = ['saveGame'];
 const vuexLocal = new VuexPersistence({
   storage: window.sessionStorage,
   key: STORAGE_KEY,
-  filter: (mutation: any) => persistMutations.indexOf(mutation.type) >= 0
+  filter: (mutation: any) => persistMutations.indexOf(mutation.type) >= 0,
+  // Steps are static design data — never persist them so layout changes take effect immediately.
+  reducer: (state: any) => {
+    const { steps, ...rest } = state;
+    return rest;
+  }
 });
 
 const store = createStore({

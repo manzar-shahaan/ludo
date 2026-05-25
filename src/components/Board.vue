@@ -30,7 +30,7 @@
           <strong class="pb-name">{{ placementBanner.player.name }}</strong>
           <span class="pb-msg">finished {{ rankLabel(placementBanner.rank) }}!</span>
         </div>
-        <div class="pb-actions">
+        <div v-if="!isMultiplayerMode" class="pb-actions">
           <button class="ui-btn ui-btn--ghost pb-btn" type="button" @click="onBannerStop()">Stop</button>
           <button class="ui-btn ui-btn--primary pb-btn" type="button" @click="onBannerContinue()">Continue</button>
         </div>
@@ -54,9 +54,9 @@
 
     <div class="layout">
       <div class="corners-col">
-        <PlayerCard v-if="playerSide2" :player="playerSide2" :offline="isPlayerDisconnected(playerSide2)" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide2" :player="playerSide2" :offline="isPlayerDisconnected(playerSide2)" :isHost="isPlayerHost(playerSide2)" @turn_dice="_turnDice()" />
         <div class="corners-spacer"></div>
-        <PlayerCard v-if="playerSide1" :player="playerSide1" :diceTop="true" :offline="isPlayerDisconnected(playerSide1)" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide1" :player="playerSide1" :diceTop="true" :offline="isPlayerDisconnected(playerSide1)" :isHost="isPlayerHost(playerSide1)" @turn_dice="_turnDice()" />
       </div>
 
       <main class="board-stage">
@@ -72,9 +72,9 @@
       </main>
 
       <div class="corners-col">
-        <PlayerCard v-if="playerSide3" :player="playerSide3" :offline="isPlayerDisconnected(playerSide3)" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide3" :player="playerSide3" :offline="isPlayerDisconnected(playerSide3)" :isHost="isPlayerHost(playerSide3)" @turn_dice="_turnDice()" />
         <div class="corners-spacer"></div>
-        <PlayerCard v-if="playerSide4" :player="playerSide4" :diceTop="true" :offline="isPlayerDisconnected(playerSide4)" @turn_dice="_turnDice()" />
+        <PlayerCard v-if="playerSide4" :player="playerSide4" :diceTop="true" :offline="isPlayerDisconnected(playerSide4)" :isHost="isPlayerHost(playerSide4)" @turn_dice="_turnDice()" />
       </div>
     </div>
 
@@ -105,7 +105,7 @@ import {
 import { SLEEP_BETWEEN_TURNS } from '@/constants';
 import type { PlayerSlot } from '@/store/modules/settings';
 import { isMultiplayer, sendIntent, disconnect } from '@/net/transport';
-import type { ServerMessage } from '@/net/types';
+import type { ServerMessage, RoomSlot } from '@/net/types';
 import { wsClient } from '@/net/client';
 
 export default defineComponent({
@@ -143,6 +143,8 @@ export default defineComponent({
     },
     mySlotIndex(): number | null { return store.getters['room/mySlotIndex']; },
     isOwner(): boolean { return store.getters['room/isOwner']; },
+    isMultiplayerMode(): boolean { return isMultiplayer(); },
+    finishedPlayers(): Player[] { return store.getters['board/finishedPlayers'] || []; },
     isMyTurn(): boolean {
       const pa = this.playerActive;
       if (!pa || this.mySlotIndex === null) return false;
@@ -158,6 +160,16 @@ export default defineComponent({
   },
 
   watch: {
+    finishedPlayers(newList: Player[], oldList: Player[]) {
+      if (!isMultiplayer()) return;
+      if (newList.length <= oldList.length) return;
+      const justFinished = newList[newList.length - 1];
+      if (!justFinished) return;
+      this.placementBanner = { player: justFinished, rank: newList.length };
+      setTimeout(() => {
+        if (this.placementBanner?.player.id === justFinished.id) this.placementBanner = null;
+      }, 4000);
+    },
     boardStatus(newStatus: BoardStatus) {
       if (!isMultiplayer()) return;
       if (newStatus === BoardStatus.PLAYER_IS_THINKING && this.isMyTurn) {
@@ -198,6 +210,12 @@ export default defineComponent({
       this.$router.push('/');
     },
 
+    isPlayerHost(player: Player | null): boolean {
+      if (!player || !isMultiplayer()) return false;
+      const slots = store.getters['room/slots'] as RoomSlot[];
+      return slots.find(s => s.slotIndex === player.side - 1)?.isOwner ?? false;
+    },
+
     isPlayerDisconnected(player: Player | null): boolean {
       if (!player || !this.disconnectedPlayer || !isMultiplayer()) return false;
       return player.side === (this.disconnectedPlayer as { slotIndex: number }).slotIndex + 1;
@@ -212,7 +230,11 @@ export default defineComponent({
       store.commit('board/update', { key: 'shouldShowMenu', value: false });
       this._mpUnsubscribe = wsClient.onMessage((msg: ServerMessage) => {
         if (msg.type === 'PLAYER_DISCONNECTED') {
-          this.disconnectedPlayer = { slotIndex: msg.slotIndex, name: msg.playerName };
+          const finished = store.getters['board/finishedPlayers'] as Player[];
+          const alreadyFinished = finished.some((p: Player) => p.side === msg.slotIndex + 1);
+          if (!alreadyFinished) {
+            this.disconnectedPlayer = { slotIndex: msg.slotIndex, name: msg.playerName };
+          }
         } else if (msg.type === 'PLAYER_RECONNECTED') {
           this.disconnectedPlayer = null;
         }
@@ -544,19 +566,24 @@ export default defineComponent({
   .corners-col { flex: 0 0 200px; }
 }
 
-// ── Mobile (≤700px): board-first, 2×2 player grid, bottom dice sheet ─────────
+// ── Mobile (≤700px): board-first, corner-matched 2×2 player grid, bottom dice ─
 @media (max-width: 700px) {
+  // Switch to CSS grid so player cards can be placed at their matching board corners.
+  // corners-col containers become display:contents, making player cards direct grid items.
   .layout {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
     gap: 0.4rem;
-    padding: 0 0 80px; // no side padding (board goes edge-to-edge); bottom reserves dice bar space
+    padding: 0 0.4rem 80px;
     height: auto;
     overflow: visible;
-    align-items: stretch;
   }
 
+  // Board spans both columns in the middle row
   .board-stage {
-    order: -1; // board appears before the player card rows
+    grid-column: 1 / -1;
+    grid-row: 2;
     flex: none;
     width: 100%;
     min-height: 0;
@@ -566,31 +593,29 @@ export default defineComponent({
 
   .board-square {
     width: 100%;
-    height: auto;       // aspect-ratio determines height
+    height: auto;
     max-width: none;
     margin: 0;
   }
 
-  // Board itself: remove rounded corners at full bleed width
   .board {
     border-radius: 0;
     border-left: none;
     border-right: none;
   }
 
+  // Unwrap column containers so player cards become direct grid items
   .corners-col {
-    flex: none;
-    width: 100%;
-    flex-direction: row;
-    gap: 0.4rem;
-    padding: 0 0.4rem; // restore horizontal padding for player cards
-
+    display: contents;
     .corners-spacer { display: none; }
-    .player-card    { flex: 1 1 0; min-width: 0; }
-
-    // Dice is promoted to the mobile-dice-bar; hide it inside player cards
-    .card-dice { display: none; }
+    .card-dice      { display: none; }
   }
+
+  // Place each player card at its corresponding board corner
+  .player-card.side-2 { grid-column: 1; grid-row: 1; } // top-left  (green)
+  .player-card.side-3 { grid-column: 2; grid-row: 1; } // top-right (blue)
+  .player-card.side-1 { grid-column: 1; grid-row: 3; } // bot-left  (red)
+  .player-card.side-4 { grid-column: 2; grid-row: 3; } // bot-right (yellow)
 
   // Compact topbar on small screens
   .topbar {
@@ -653,14 +678,30 @@ export default defineComponent({
 .dice-bar-leave-to     { transform: translateY(100%); opacity: 0; }
 
 // ── Board arm: junction (outermost endpoint) squares ─────────────────────────
-// The outermost endpoint of each home stretch ([13,7] [7,1] [1,7] [7,13]) is a
-// shared junction square traversed by all players — render it neutral.
+// Shared corner junction squares traversed by all players — render neutral.
+// Red=(9,6), Green=(6,7), Blue=(6,9), Yellow=(15,9).
 // Uses !important because Step.vue scoped .type-3.side-X rules share equal specificity.
-.row-13.column-7 .inner,
-.row-7.column-1  .inner,
-.row-1.column-7  .inner,
-.row-7.column-13 .inner {
+.row-9.column-6  .inner,
+.row-6.column-7  .inner,
+.row-6.column-9  .inner,
+.row-15.column-9 .inner {
   background: $bg-3 !important;
   box-shadow: inset 0 0 0 1px $hairline !important;
+}
+
+// ── Final tile: fill the full 3×3 center void ────────────────────────────────
+// The tile is placed at (8,8) by Road.vue. Shifting it back by one stride
+// (step_width + step_gutter) and widening to 3W+2G covers rows 7-9, cols 7-9,
+// leaving exactly step_gutter gap to the surrounding home-arm tiles.
+// gutter = W/10 exactly, so new inner = 3.2× original; star inset adjusts from
+// 22% → 41.25% so its rendered pixel size stays unchanged.
+.row-8.column-8 {
+  width:       calc(3 * #{$step-width} + 2 * #{$step-gutter});
+  height:      calc(3 * #{$step-width} + 2 * #{$step-gutter});
+  margin-top:  calc(-1 * (#{$step-width} + #{$step-gutter}));
+  margin-left: calc(-1 * (#{$step-width} + #{$step-gutter}));
+
+  .inner { border-radius: 14% !important; }
+  .inner::before { inset: 41.25% !important; }
 }
 </style>

@@ -165,7 +165,30 @@ export default defineComponent({
   .medal         { font-size: 1rem; }
   .tag           { font-size: 0.58rem; padding: 0 4px; }
 
-  // Dice moved to the mobile-dice-bar in Board.vue; hide here
-  .card-dice { display: none; }
+  // Compact horizontal dice inside cards on mobile
+  .card-dice :deep(.dice-area) {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0.45rem 0.65rem;
+    gap: 0.4rem 0.6rem;
+  }
+  .card-dice :deep(.dice-wrap) { flex: 0 0 auto; width: 44px; height: 44px; }
+  .card-dice :deep(.die)       { width: 38px; height: 38px; border-radius: 9px; padding: 6px; gap: 2px; }
+  .card-dice :deep(.pip)       { width: 5px; height: 5px; }
+  .card-dice :deep(.roll-btn)  { flex: 1; min-width: 0; font-size: 0.78rem; padding: 0.28rem 0.6rem; }
+  .card-dice :deep(.hint)      { flex: 1; min-height: 0; font-size: 0.74rem; text-align: left; }
+  .card-dice :deep(.callout) {
+    flex: 0 0 100%;
+    padding: 0.3rem 0.5rem;
+    gap: 0.3rem;
+    justify-content: flex-start;
+    background: transparent;
+    border-color: transparent;
+    border-radius: $border-radius-sm;
+  }
+  .card-dice :deep(.callout-name)  { font-size: 0.8rem; }
+  .card-dice :deep(.callout-text)  { font-size: 0.72rem; }
+  .card-dice :deep(.callout-value) { font-size: 1.1rem; }
 }
 </style>

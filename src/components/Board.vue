@@ -566,24 +566,24 @@ export default defineComponent({
   .corners-col { flex: 0 0 200px; }
 }
 
-// ── Mobile (≤700px): board-first, corner-matched 2×2 player grid, bottom dice ─
+// ── Mobile (≤700px): board on top, corner-matched 2×2 card grid below ────────
 @media (max-width: 700px) {
-  // Switch to CSS grid so player cards can be placed at their matching board corners.
-  // corners-col containers become display:contents, making player cards direct grid items.
+  // Board fills row 1, two rows of corner-matched cards sit below it.
+  // corners-col containers use display:contents so player cards become direct grid items.
   .layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto auto;
-    gap: 0.4rem;
-    padding: 0 0.4rem 80px;
+    gap: 0.35rem;
+    padding: 0 0.35rem env(safe-area-inset-bottom, 0.75rem);
     height: auto;
     overflow: visible;
   }
 
-  // Board spans both columns in the middle row
+  // Board spans both columns at the very top
   .board-stage {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 1;
     flex: none;
     width: 100%;
     min-height: 0;
@@ -591,31 +591,21 @@ export default defineComponent({
     align-items: flex-start;
   }
 
-  .board-square {
-    width: 100%;
-    height: auto;
-    max-width: none;
-    margin: 0;
-  }
-
-  .board {
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-  }
+  .board-square { width: 100%; height: auto; max-width: none; margin: 0; }
+  .board        { border-radius: 0; border-left: none; border-right: none; }
 
   // Unwrap column containers so player cards become direct grid items
   .corners-col {
     display: contents;
     .corners-spacer { display: none; }
-    .card-dice      { display: none; }
   }
 
-  // Place each player card at its corresponding board corner
-  .player-card.side-2 { grid-column: 1; grid-row: 1; } // top-left  (green)
-  .player-card.side-3 { grid-column: 2; grid-row: 1; } // top-right (blue)
-  .player-card.side-1 { grid-column: 1; grid-row: 3; } // bot-left  (red)
-  .player-card.side-4 { grid-column: 2; grid-row: 3; } // bot-right (yellow)
+  // Top card row = top corners of the board (green top-left, blue top-right)
+  .player-card.side-2 { grid-column: 1; grid-row: 2; }
+  .player-card.side-3 { grid-column: 2; grid-row: 2; }
+  // Bottom card row = bottom corners (red bottom-left, yellow bottom-right)
+  .player-card.side-1 { grid-column: 1; grid-row: 3; }
+  .player-card.side-4 { grid-column: 2; grid-row: 3; }
 
   // Compact topbar on small screens
   .topbar {
@@ -634,41 +624,7 @@ export default defineComponent({
   display: none; // hidden on tablet/desktop
 
   @media (max-width: 700px) {
-    display: block;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 40;
-    background: $bg-2;
-    border-top: 1px solid $hairline-strong;
-    box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-
-    // Compact horizontal layout inside the bar
-    .dice-area {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-      padding: 0.65rem 1rem;
-      gap: 0.5rem 0.85rem;
-    }
-    .dice-wrap { flex: 0 0 auto; width: 52px; height: 52px; }
-    .die        { width: 46px; height: 46px; border-radius: 11px; padding: 8px; gap: 2px; }
-    .pip        { width: 8px; height: 8px; }
-    .roll-btn   { flex: 1; min-width: 80px; }
-    .hint       { flex: 1; font-size: 0.82rem; min-height: auto; text-align: left; }
-    .callout    {
-      flex: 0 0 100%;           // callout spans full width on its own row
-      background: transparent;
-      border: none;
-      padding: 0 0 0.15rem;
-      justify-content: flex-start;
-      gap: 0.4rem;
-    }
-    .callout-name { font-size: 0.88rem; }
-    .callout-text { font-size: 0.8rem; }
-    .callout-value { font-size: 1.35rem; }
+    display: none; // dice is shown inside player cards on mobile
   }
 }
 

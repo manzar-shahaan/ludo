@@ -6,7 +6,8 @@ import { StepPlace, StepType } from '@/types/types';
 //                   col 8 / row 6 (side 3), row 8 / col 8 (side 4).
 // Corner-conversion: the last common of each side becomes the first endpoint
 // of the neighboring side (same position, reassigned type & side).
-// Path per player: 11 commons × 4 sides + 6 endpoints + 1 final = 51.
+// Path per player: 11 commons × 4 sides + 4 junction squares + 5 inner endpoints + 1 final = 54.
+// Junction square = sideEndpoints(s)[0] (outermost); inner home = sideEndpoints(s).slice(1).
 
 export const listInitial: StepPlace[] = [
 

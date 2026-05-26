@@ -170,14 +170,14 @@ export default defineComponent({
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
-    padding: 0.45rem 0.65rem;
-    gap: 0.4rem 0.6rem;
+    padding: 0.5rem 0.65rem;
+    gap: 0.5rem 0.6rem;
   }
-  .card-dice :deep(.dice-wrap) { flex: 0 0 auto; width: 44px; height: 44px; }
-  .card-dice :deep(.die)       { width: 38px; height: 38px; border-radius: 9px; padding: 6px; gap: 2px; }
-  .card-dice :deep(.pip)       { width: 5px; height: 5px; }
-  .card-dice :deep(.roll-btn)  { flex: 1; min-width: 0; font-size: 0.78rem; padding: 0.28rem 0.6rem; }
-  .card-dice :deep(.hint)      { flex: 1; min-height: 0; font-size: 0.74rem; text-align: left; }
+  .card-dice :deep(.dice-wrap) { flex: 0 0 auto; width: 52px; height: 52px; }
+  .card-dice :deep(.die)       { width: 46px; height: 46px; border-radius: 10px; padding: 7px; gap: 3px; }
+  .card-dice :deep(.pip)       { width: 6px; height: 6px; }
+  .card-dice :deep(.roll-btn)  { flex: 1; min-width: 0; min-height: 44px; font-size: 0.9rem; font-weight: 600; padding: 0.55rem 0.75rem; }
+  .card-dice :deep(.hint)      { flex: 1; min-height: 0; font-size: 0.78rem; text-align: left; }
   .card-dice :deep(.callout) {
     flex: 0 0 100%;
     padding: 0.3rem 0.5rem;

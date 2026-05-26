@@ -66,6 +66,40 @@
               <Road class="road" />
               <Marbles @clickmarble="onClickMarble" class="marbles" />
             </div>
+
+            <!-- Mobile-only: player info chips overlaid on the four home corners.
+                 Replaces the side cards on small screens. -->
+            <div class="corner-info-layer">
+              <div
+                v-for="p in players"
+                :key="p.id"
+                class="ci"
+                :class="[
+                  `ci-side-${p.side}`,
+                  {
+                    'ci-active':   isCornerActive(p),
+                    'ci-winner':   isCornerWinner(p),
+                    'ci-offline':  isPlayerDisconnected(p)
+                  }
+                ]"
+              >
+                <div class="ci-row">
+                  <span class="ci-dot"></span>
+                  <span class="ci-name">{{ p.name }}</span>
+                  <span v-if="isPlayerDisconnected(p)" class="ci-tag ci-tag--offline">Off</span>
+                  <span v-else-if="p.isAI"             class="ci-tag">AI</span>
+                  <span v-if="isPlayerHost(p)"         class="ci-tag ci-tag--host">Host</span>
+                </div>
+                <div class="ci-row ci-row--meta">
+                  <span class="ci-count">{{ marblesHomeFor(p) }}/4</span>
+                  <span v-if="isCornerWinner(p)" class="ci-medal">🏆</span>
+                  <span v-else-if="isCornerActive(p)" class="ci-turn">TURN</span>
+                </div>
+                <div v-if="isCornerActive(p) && showCornerDice" class="ci-dice">
+                  <Dice @turn_dice="_turnDice()" />
+                </div>
+              </div>
+            </div>
           </section>
           <MenuBoard v-show="shouldShowMenu" @start_game="_startGame" @resume_game="resumeGame()" />
         </div>
@@ -157,6 +191,13 @@ export default defineComponent({
       if (isMultiplayer()) return this.boardStatus === BoardStatus.TURNING_DICE || this.isMyTurn;
       return true;
     },
+    // True when the active player's dice should render inside their corner chip on mobile.
+    // Always render once the game is past initializing — covers AI roll animation, waiting
+    // for human roll, and the post-roll callout.
+    showCornerDice(): boolean {
+      if (!this.playerActive) return false;
+      return this.boardStatus !== BoardStatus.INITIALIZING;
+    },
   },
 
   watch: {
@@ -219,6 +260,19 @@ export default defineComponent({
     isPlayerDisconnected(player: Player | null): boolean {
       if (!player || !this.disconnectedPlayer || !isMultiplayer()) return false;
       return player.side === (this.disconnectedPlayer as { slotIndex: number }).slotIndex + 1;
+    },
+
+    isCornerActive(player: Player): boolean {
+      return !!this.playerActive && this.playerActive.id === player.id && !this.isCornerWinner(player);
+    },
+
+    isCornerWinner(player: Player): boolean {
+      return !!this.playerWinner && this.playerWinner.id === player.id;
+    },
+
+    marblesHomeFor(player: Player): number {
+      const marbles = (store.getters['marbles/listByPlayer'](player) || []) as Marble[];
+      return marbles.filter(m => m.isAtFinal).length;
     },
 
     sendMpIntent(type: 'CONTINUE_WITHOUT' | 'REPLACE_WITH_AI', slotIndex: number) {
@@ -567,45 +621,28 @@ export default defineComponent({
 }
 
 // ── Mobile (≤700px): board on top, corner-matched 2×2 card grid below ────────
+// ── Mobile: cards are replaced with corner overlays on the board itself ─────
 @media (max-width: 700px) {
-  // Board fills row 1, two rows of corner-matched cards sit below it.
-  // corners-col containers use display:contents so player cards become direct grid items.
   .layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 0.35rem;
-    padding: 0 0.35rem env(safe-area-inset-bottom, 0.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 0 env(safe-area-inset-bottom, 0.5rem);
     height: auto;
     overflow: visible;
   }
+  // Hide the side cards entirely — info now lives inside the board corners.
+  .corners-col { display: none; }
 
-  // Board spans both columns at the very top
   .board-stage {
-    grid-column: 1 / -1;
-    grid-row: 1;
     flex: none;
     width: 100%;
     min-height: 0;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: flex-start;
   }
-
   .board-square { width: 100%; height: auto; max-width: none; margin: 0; }
-  .board        { border-radius: 0; border-left: none; border-right: none; }
-
-  // Unwrap column containers so player cards become direct grid items
-  .corners-col {
-    display: contents;
-    .corners-spacer { display: none; }
-  }
-
-  // Top card row = top corners of the board (green top-left, blue top-right)
-  .player-card.side-2 { grid-column: 1; grid-row: 2; }
-  .player-card.side-3 { grid-column: 2; grid-row: 2; }
-  // Bottom card row = bottom corners (red bottom-left, yellow bottom-right)
-  .player-card.side-1 { grid-column: 1; grid-row: 3; }
-  .player-card.side-4 { grid-column: 2; grid-row: 3; }
+  .board        { border-radius: 0; border-left: none; border-right: none; padding: 8px; }
 
   // Compact topbar on small screens
   .topbar {
@@ -617,6 +654,124 @@ export default defineComponent({
       .turn-line { font-size: 0.72rem; padding: 3px 8px; gap: 0.35rem; }
     }
   }
+}
+
+// ── Corner info chips (mobile only) ─────────────────────────────────────────
+// Sit inside .board, absolutely positioned at each colored home corner.
+// Each chip shows name + marbles-home count + tags. The active player's chip
+// expands to host the Dice (die + ROLL button) right where their marbles live.
+.corner-info-layer { display: none; }
+
+@media (max-width: 700px) {
+  .corner-info-layer {
+    display: block;
+    position: absolute;
+    inset: 8px; // matches .board padding so we align to .board-inner
+    pointer-events: none;
+    z-index: 4;
+  }
+  .ci {
+    position: absolute;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    min-width: 0;
+    max-width: 46%;
+    border-radius: $border-radius-sm;
+    background: rgba(11, 13, 16, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid $hairline;
+    transition: border-color 180ms $ease-out, background 180ms $ease-out, box-shadow 180ms $ease-out;
+  }
+  // Anchor each chip to its home corner. Sides match the board layout:
+  //   side-2 = green TL, side-3 = blue TR, side-1 = red BL, side-4 = yellow BR.
+  .ci-side-2 { top:    0; left:  0; align-items: flex-start; }
+  .ci-side-3 { top:    0; right: 0; align-items: flex-end;   text-align: right; }
+  .ci-side-1 { bottom: 0; left:  0; align-items: flex-start; }
+  .ci-side-4 { bottom: 0; right: 0; align-items: flex-end;   text-align: right; }
+
+  .ci-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .ci-row--meta { gap: 8px; font-size: 0.7rem; color: $text-3; }
+  .ci-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    flex: none;
+  }
+  .ci-side-1 .ci-dot { background: $brand-1; }
+  .ci-side-2 .ci-dot { background: $brand-2; }
+  .ci-side-3 .ci-dot { background: $brand-3; }
+  .ci-side-4 .ci-dot { background: $brand-4; }
+  .ci-name {
+    font-size: 0.78rem; font-weight: 600; color: $text-1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;
+  }
+  .ci-tag {
+    font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: $text-3; padding: 0 4px; border-radius: 999px; border: 1px solid $hairline;
+    &--offline { color: $brand-1; border-color: rgba(220, 80, 90, 0.35); }
+    &--host    { color: $accent;  border-color: rgba(124, 156, 255, 0.35); }
+  }
+  .ci-count { font-family: $font-family-numeric; font-weight: 600; color: $text-2; font-size: 0.75rem; }
+  .ci-turn {
+    font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 999px; background: $accent-soft; color: $accent;
+  }
+  .ci-medal { font-size: 0.95rem; line-height: 1; }
+
+  .ci-active {
+    background: rgba(11, 13, 16, 0.78);
+    border-color: $hairline-strong;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+  .ci-side-1.ci-active { box-shadow: 0 0 0 1px rgba($brand-1, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
+  .ci-side-2.ci-active { box-shadow: 0 0 0 1px rgba($brand-2, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
+  .ci-side-3.ci-active { box-shadow: 0 0 0 1px rgba($brand-3, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
+  .ci-side-4.ci-active { box-shadow: 0 0 0 1px rgba($brand-4, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
+  .ci-offline { opacity: 0.55; filter: grayscale(0.4); }
+  .ci-winner  { border-color: rgba(232, 198, 81, 0.55); }
+
+  // Dice slot inside the active player's chip — compact horizontal row.
+  .ci-dice {
+    margin-top: 6px;
+    width: 100%;
+    border-top: 1px solid $hairline;
+    padding-top: 6px;
+  }
+  .ci-dice :deep(.dice-area) {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0;
+    gap: 6px 8px;
+  }
+  .ci-dice :deep(.dice-wrap) { flex: 0 0 auto; width: 44px; height: 44px; }
+  .ci-dice :deep(.die)       { width: 40px; height: 40px; border-radius: 9px; padding: 6px; gap: 2px; }
+  .ci-dice :deep(.pip)       { width: 5px; height: 5px; }
+  .ci-dice :deep(.roll-btn)  { flex: 1; min-width: 0; min-height: 40px; font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.6rem; }
+  .ci-dice :deep(.hint)      { flex: 1; min-height: 0; font-size: 0.7rem; text-align: left; margin: 0; color: $text-3; }
+  .ci-dice :deep(.callout) {
+    flex: 0 0 100%;
+    padding: 4px 6px;
+    gap: 4px;
+    justify-content: flex-start;
+    background: transparent;
+    border-color: transparent;
+  }
+  .ci-dice :deep(.callout-name)  { font-size: 0.72rem; }
+  .ci-dice :deep(.callout-text)  { font-size: 0.65rem; }
+  .ci-dice :deep(.callout-value) { font-size: 0.95rem; padding: 0 4px; }
+
+  // Right-anchored chips: align dice row to the right edge.
+  .ci-side-3 .ci-dice :deep(.dice-area),
+  .ci-side-4 .ci-dice :deep(.dice-area) { justify-content: flex-end; }
 }
 
 // ── Mobile dice bar ────────────────────────────────────────────────────────────

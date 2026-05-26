@@ -658,120 +658,154 @@ export default defineComponent({
 
 // ── Corner info chips (mobile only) ─────────────────────────────────────────
 // Sit inside .board, absolutely positioned at each colored home corner.
-// Each chip shows name + marbles-home count + tags. The active player's chip
-// expands to host the Dice (die + ROLL button) right where their marbles live.
+// Width = 40% = 6/15 of the board = exactly the home zone, so chips never
+// reach the common squares. The active player's chip expands downward (or
+// upward for bottom corners) to show a compact die + ROLL button.
 .corner-info-layer { display: none; }
 
 @media (max-width: 700px) {
   .corner-info-layer {
     display: block;
     position: absolute;
-    inset: 8px; // matches .board padding so we align to .board-inner
+    inset: 8px; // matches .board padding → aligns to board-inner
     pointer-events: none;
     z-index: 4;
   }
+
   .ci {
     position: absolute;
     pointer-events: auto;
+    // 6/15 cells wide = exactly the home zone, never overlaps common path
+    width: 40%;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     padding: 6px 8px;
-    min-width: 0;
-    max-width: 46%;
     border-radius: $border-radius-sm;
-    background: rgba(11, 13, 16, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(11, 13, 16, 0.60);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid $hairline;
     transition: border-color 180ms $ease-out, background 180ms $ease-out, box-shadow 180ms $ease-out;
+    box-sizing: border-box;
   }
-  // Anchor each chip to its home corner. Sides match the board layout:
-  //   side-2 = green TL, side-3 = blue TR, side-1 = red BL, side-4 = yellow BR.
-  .ci-side-2 { top:    0; left:  0; align-items: flex-start; }
-  .ci-side-3 { top:    0; right: 0; align-items: flex-end;   text-align: right; }
-  .ci-side-1 { bottom: 0; left:  0; align-items: flex-start; }
-  .ci-side-4 { bottom: 0; right: 0; align-items: flex-end;   text-align: right; }
+
+  // Anchor to matching home corner: side-2=TL, side-3=TR, side-1=BL, side-4=BR
+  .ci-side-2 { top:    0; left:  0; }
+  .ci-side-3 { top:    0; right: 0; }
+  .ci-side-1 { bottom: 0; left:  0; }
+  .ci-side-4 { bottom: 0; right: 0; }
 
   .ci-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
+    width: 100%;
   }
-  .ci-row--meta { gap: 8px; font-size: 0.7rem; color: $text-3; }
+  .ci-row--meta { gap: 6px; }
+
   .ci-dot {
-    width: 9px; height: 9px; border-radius: 50%;
+    width: 8px; height: 8px; border-radius: 50%; flex: none;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
-    flex: none;
   }
   .ci-side-1 .ci-dot { background: $brand-1; }
   .ci-side-2 .ci-dot { background: $brand-2; }
   .ci-side-3 .ci-dot { background: $brand-3; }
   .ci-side-4 .ci-dot { background: $brand-4; }
+
   .ci-name {
-    font-size: 0.78rem; font-weight: 600; color: $text-1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;
+    font-size: 0.75rem; font-weight: 600; color: $text-1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 1; min-width: 0;
   }
   .ci-tag {
-    font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    color: $text-3; padding: 0 4px; border-radius: 999px; border: 1px solid $hairline;
+    font-size: 0.52rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: $text-3; padding: 0 3px; border-radius: 999px; border: 1px solid $hairline; flex: none;
     &--offline { color: $brand-1; border-color: rgba(220, 80, 90, 0.35); }
     &--host    { color: $accent;  border-color: rgba(124, 156, 255, 0.35); }
   }
-  .ci-count { font-family: $font-family-numeric; font-weight: 600; color: $text-2; font-size: 0.75rem; }
-  .ci-turn {
-    font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    padding: 1px 5px; border-radius: 999px; background: $accent-soft; color: $accent;
+  .ci-count {
+    font-family: $font-family-numeric; font-weight: 600; color: $text-3; font-size: 0.7rem;
   }
-  .ci-medal { font-size: 0.95rem; line-height: 1; }
+  .ci-turn {
+    font-size: 0.52rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 999px; background: $accent-soft; color: $accent; flex: none;
+  }
+  .ci-medal { font-size: 0.9rem; line-height: 1; flex: none; }
 
   .ci-active {
-    background: rgba(11, 13, 16, 0.78);
+    background: rgba(11, 13, 16, 0.82);
     border-color: $hairline-strong;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
-  .ci-side-1.ci-active { box-shadow: 0 0 0 1px rgba($brand-1, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
-  .ci-side-2.ci-active { box-shadow: 0 0 0 1px rgba($brand-2, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
-  .ci-side-3.ci-active { box-shadow: 0 0 0 1px rgba($brand-3, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
-  .ci-side-4.ci-active { box-shadow: 0 0 0 1px rgba($brand-4, 0.45), 0 6px 18px rgba(0,0,0,0.35); }
-  .ci-offline { opacity: 0.55; filter: grayscale(0.4); }
-  .ci-winner  { border-color: rgba(232, 198, 81, 0.55); }
+  .ci-side-1.ci-active { box-shadow: 0 0 0 1px rgba($brand-1, 0.4), 0 4px 14px rgba(0,0,0,0.4); }
+  .ci-side-2.ci-active { box-shadow: 0 0 0 1px rgba($brand-2, 0.4), 0 4px 14px rgba(0,0,0,0.4); }
+  .ci-side-3.ci-active { box-shadow: 0 0 0 1px rgba($brand-3, 0.4), 0 4px 14px rgba(0,0,0,0.4); }
+  .ci-side-4.ci-active { box-shadow: 0 0 0 1px rgba($brand-4, 0.4), 0 4px 14px rgba(0,0,0,0.4); }
+  .ci-offline { opacity: 0.50; filter: grayscale(0.4); }
+  .ci-winner  { border-color: rgba(232, 198, 81, 0.5); }
 
-  // Dice slot inside the active player's chip — compact horizontal row.
+  // ── Dice inside the active chip ──
+  // Use !important on pixel dimensions to beat Dice.vue's scoped attribute-selector specificity.
+  // Die is 30×30px so the whole dice row stays compact inside the 40%-wide chip.
   .ci-dice {
-    margin-top: 6px;
+    margin-top: 4px;
     width: 100%;
     border-top: 1px solid $hairline;
-    padding-top: 6px;
+    padding-top: 5px;
+    overflow: hidden;
   }
   .ci-dice :deep(.dice-area) {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 0;
-    gap: 6px 8px;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    padding: 0 !important;
+    gap: 5px 7px !important;
   }
-  .ci-dice :deep(.dice-wrap) { flex: 0 0 auto; width: 44px; height: 44px; }
-  .ci-dice :deep(.die)       { width: 40px; height: 40px; border-radius: 9px; padding: 6px; gap: 2px; }
-  .ci-dice :deep(.pip)       { width: 5px; height: 5px; }
-  .ci-dice :deep(.roll-btn)  { flex: 1; min-width: 0; min-height: 40px; font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.6rem; }
-  .ci-dice :deep(.hint)      { flex: 1; min-height: 0; font-size: 0.7rem; text-align: left; margin: 0; color: $text-3; }
+  .ci-dice :deep(.dice-wrap) {
+    flex: 0 0 auto !important;
+    width:  34px !important;
+    height: 34px !important;
+  }
+  .ci-dice :deep(.die) {
+    width:  30px !important;
+    height: 30px !important;
+    border-radius: 7px !important;
+    padding: 5px !important;
+    gap: 2px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+  }
+  .ci-dice :deep(.pip) {
+    width:  4px !important;
+    height: 4px !important;
+  }
+  .ci-dice :deep(.roll-btn) {
+    flex: 1 !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    padding: 0.3rem 0.5rem !important;
+  }
+  .ci-dice :deep(.hint) {
+    flex: 1 !important;
+    font-size: 0.68rem !important;
+    text-align: left !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    color: $text-3;
+  }
   .ci-dice :deep(.callout) {
-    flex: 0 0 100%;
-    padding: 4px 6px;
-    gap: 4px;
-    justify-content: flex-start;
-    background: transparent;
-    border-color: transparent;
+    flex: 0 0 100% !important;
+    padding: 3px 5px !important;
+    gap: 3px !important;
+    justify-content: flex-start !important;
+    background: transparent !important;
+    border-color: transparent !important;
   }
-  .ci-dice :deep(.callout-name)  { font-size: 0.72rem; }
-  .ci-dice :deep(.callout-text)  { font-size: 0.65rem; }
-  .ci-dice :deep(.callout-value) { font-size: 0.95rem; padding: 0 4px; }
-
-  // Right-anchored chips: align dice row to the right edge.
-  .ci-side-3 .ci-dice :deep(.dice-area),
-  .ci-side-4 .ci-dice :deep(.dice-area) { justify-content: flex-end; }
+  .ci-dice :deep(.callout-name)  { font-size: 0.68rem !important; }
+  .ci-dice :deep(.callout-text)  { font-size: 0.62rem !important; }
+  .ci-dice :deep(.callout-value) { font-size: 0.88rem !important; padding: 0 3px !important; }
 }
 
 // ── Mobile dice bar ────────────────────────────────────────────────────────────

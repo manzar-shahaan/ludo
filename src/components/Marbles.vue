@@ -1,6 +1,13 @@
 <template>
   <div class="marbles">
-    <Marble v-for="item in list" :key="item.id" :model="item" @clickmarble="onClickMarble" />
+    <Marble
+      v-for="item in stackedList"
+      :key="item.marble.id"
+      :model="item.marble"
+      :stackIndex="item.stackIndex"
+      :stackSize="item.stackSize"
+      @clickmarble="onClickMarble"
+    />
   </div>
 </template>
 
@@ -17,6 +24,23 @@ export default defineComponent({
   computed: {
     list(): Marble[] {
       return store.getters['marbles/list'];
+    },
+    stackedList(): { marble: Marble; stackIndex: number; stackSize: number }[] {
+      // Group marbles that share the same board square.
+      const groups = new Map<string, Marble[]>();
+      for (const m of this.list) {
+        const key = `${m.row},${m.column}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(m);
+      }
+      return this.list.map(m => {
+        const group = groups.get(`${m.row},${m.column}`)!;
+        return {
+          marble:     m,
+          stackIndex: group.indexOf(m),
+          stackSize:  group.length,
+        };
+      });
     }
   },
 

@@ -20,7 +20,9 @@ export default defineComponent({
   name: 'MarblePiece',
 
   props: {
-    model: { type: Object as PropType<Marble>, required: true }
+    model:      { type: Object as PropType<Marble>, required: true },
+    stackIndex: { type: Number, default: 0 },
+    stackSize:  { type: Number, default: 1 },
   },
 
   data() {
@@ -34,9 +36,17 @@ export default defineComponent({
   methods: {
     getWrapperStyle() {
       const step = STEP_WIDTH + STEP_GUTTER;
+      // Marbles sharing a square stack with a diagonal offset so each one peeks
+      // out from behind the one in front. The frontmost marble (highest stackIndex)
+      // sits at the nominal position; marbles behind it shift up-left.
+      const behind    = this.stackSize - 1 - this.stackIndex;
+      const offsetPct = behind * 18; // % of the marble element's own size
       return {
-        left: `${(this.model.column - 1) * step}%`,
-        top: `${(this.model.row - 1) * step}%`,
+        left:      `${(this.model.column - 1) * step}%`,
+        top:       `${(this.model.row    - 1) * step}%`,
+        transform: behind > 0 ? `translate(${-offsetPct}%, ${-offsetPct}%)` : undefined,
+        // Moveable/moving marbles always float above the stack.
+        zIndex: (this.model.isMoveable || this.model.isMoving) ? 10 : this.stackIndex + 1,
       };
     },
     onClickMarble() {
@@ -49,7 +59,7 @@ export default defineComponent({
 <style lang="scss" scoped>
 .marble {
   position: absolute;
-  transition: left #{$marble-animation-duration}ms $ease-out, top #{$marble-animation-duration}ms $ease-out;
+  transition: left #{$marble-animation-duration}ms $ease-out, top #{$marble-animation-duration}ms $ease-out, transform 300ms $ease-out;
   width: $step-width;
   height: $step-width;
   display: flex;
@@ -76,13 +86,12 @@ export default defineComponent({
 }
 .moveable {
   cursor: pointer;
-  z-index: 2;
   .inner {
     box-shadow: 0 0 0 3px rgba(124,156,255,0.6), 0 2px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
     animation: pulse-ring 1600ms ease-out infinite;
   }
 }
-.is-moving { z-index: 2; }
+.is-moving { }
 .is-side-1 { z-index: 1; .inner { background: radial-gradient(circle at 35% 30%, color.adjust($brand-1, $lightness: 8%), color.adjust($brand-1, $lightness: -14%)); } }
 .is-side-2 .inner { background: radial-gradient(circle at 35% 30%, color.adjust($brand-2, $lightness: 8%), color.adjust($brand-2, $lightness: -14%)); }
 .is-side-3 .inner { background: radial-gradient(circle at 35% 30%, color.adjust($brand-3, $lightness: 8%), color.adjust($brand-3, $lightness: -14%)); }
